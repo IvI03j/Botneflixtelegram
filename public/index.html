@@ -2,13 +2,28 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catálogo</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
+  <title>Catálogo Telegram</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-  <h1>NETFLIX</h1>
-  <div id="movies"></div>
+  <div class="app">
+    <header class="header">
+      <h1>NETFLIX</h1>
+      <p class="subtitle">Tu catálogo en Telegram</p>
+    </header>
+
+    <main>
+      <div id="movies" class="movies-grid">
+        <p class="loading">Cargando contenido...</p>
+      </div>
+    </main>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
