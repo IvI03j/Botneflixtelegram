@@ -1,22 +1,133 @@
-async function loadMovies() {
-  const res = await fetch('/api/movies');
-  const movies = await res.json();
-
-  const container = document.getElementById('movies');
-  container.innerHTML = '';
-
-  movies.forEach(movie => {
-    const div = document.createElement('div');
-    div.className = 'card';
-    div.innerHTML = `
-      <img src="${movie.poster}" alt="${movie.title}">
-      <h3>${movie.title}</h3>
-      <p>${movie.year}</p>
-      <p>${movie.description}</p>
-      <a href="${movie.telegram_link}" target="_blank">Ver en Telegram</a>
-    `;
-    container.appendChild(div);
-  });
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  background: #141414;
+  color: white;
+  font-family: Arial, sans-serif;
+  overflow-x: hidden;
 }
 
-loadMovies();
+body {
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.app {
+  min-height: 100vh;
+  width: 100%;
+  padding: 16px;
+  background: #141414;
+}
+
+.header {
+  margin-bottom: 20px;
+}
+
+.header h1 {
+  margin: 0;
+  color: #e50914;
+  font-size: 32px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: #b3b3b3;
+  font-size: 14px;
+}
+
+.movies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.card {
+  background: #1f1f1f;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+}
+
+.card img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  background: #2a2a2a;
+}
+
+.card-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.meta {
+  font-size: 13px;
+  color: #b3b3b3;
+}
+
+.description {
+  font-size: 13px;
+  color: #d6d6d6;
+  line-height: 1.4;
+}
+
+.card a {
+  display: inline-block;
+  text-align: center;
+  margin-top: 6px;
+  background: #e50914;
+  color: white;
+  text-decoration: none;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.card a:hover {
+  background: #f6121d;
+}
+
+.loading,
+.empty,
+.error {
+  color: #b3b3b3;
+  font-size: 15px;
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 12px;
+  }
+
+  .header h1 {
+    font-size: 28px;
+  }
+
+  .movies-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .card img {
+    height: 220px;
+  }
+}
