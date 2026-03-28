@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const BOT_TOKEN = '8084822297:AAFTpIUQfR-LeeYXcP2c-93oqp40q0OxZTg';
-const WEBAPP_URL = 'https://botneflixtelegram.onrender.com';
+const WEBAPP_URL = 'https://mi-tindex--IvanJimenez9.replit.app';
 const PORT = 3000;
 
 const app = express();
