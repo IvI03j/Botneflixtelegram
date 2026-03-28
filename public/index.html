@@ -13,9 +13,31 @@
 <body>
   <div class="app">
     <header class="header">
-      <h1>NETFLIX</h1>
-      <p class="subtitle">Tu catálogo en Telegram</p>
+      <div>
+        <h1>NETFLIX</h1>
+        <p class="subtitle">Tu catálogo en Telegram</p>
+      </div>
     </header>
+
+    <section class="filters">
+      <input type="text" id="searchInput" placeholder="Buscar por título..." />
+
+      <select id="genreFilter">
+        <option value="">Todos los géneros</option>
+      </select>
+
+      <select id="yearFilter">
+        <option value="">Todos los años</option>
+      </select>
+
+      <select id="typeFilter">
+        <option value="">Todos los tipos</option>
+        <option value="pelicula">Películas</option>
+        <option value="serie">Series</option>
+      </select>
+
+      <button id="clearFilters">Limpiar</button>
+    </section>
 
     <main>
       <div id="movies" class="movies-grid">
