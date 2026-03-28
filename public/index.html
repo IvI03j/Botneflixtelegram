@@ -72,29 +72,34 @@
     </main>
   </div>
 
-  <!-- MODAL DETALLE -->
+  <!-- DETALLE FULLSCREEN -->
   <div id="detailModal" class="modal hidden">
-    <div class="modal-backdrop" id="closeModalBackdrop"></div>
-
     <div class="modal-card">
       <button id="closeModalBtn" class="close-modal">✕</button>
 
-      <div id="modalPosterWrap" class="modal-poster-wrap">
+      <div class="modal-poster-wrap">
         <img id="modalPoster" src="" alt="">
+        <div class="modal-hero-overlay"></div>
       </div>
 
       <div class="modal-content">
-        <h2 id="modalTitle">Título</h2>
-
-        <div id="modalMeta" class="modal-meta"></div>
-
-        <div id="modalGenres" class="modal-tags"></div>
+        <div class="modal-header-block">
+          <h2 id="modalTitle">Título</h2>
+          <div id="modalMeta" class="modal-meta"></div>
+          <div id="modalGenres" class="modal-tags"></div>
+        </div>
 
         <p id="modalDescription" class="modal-description"></p>
 
-        <a id="modalWatchBtn" class="watch-btn" href="#" target="_blank">
-          ▶ Ver ahora
-        </a>
+        <div class="modal-actions">
+          <a id="modalWatchBtn" class="watch-btn" href="#" target="_blank">
+            ▶ Ver ahora
+          </a>
+
+          <a id="modalTrailerBtn" class="trailer-btn hidden" href="#" target="_blank">
+            ▶ Ver tráiler
+          </a>
+        </div>
       </div>
     </div>
   </div>
