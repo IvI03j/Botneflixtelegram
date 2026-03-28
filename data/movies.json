@@ -1,23 +1,13 @@
 {
-  "movies": [
+  "items": [
     {
-      "id": 1,
-      "title": "Dune",
-      "year": 2021,
-      "genre": ["Sci-Fi", "Aventura"],
-      "type": "pelicula",
-      "poster": "https://via.placeholder.com/300x450?text=Dune",
-      "description": "Un joven noble debe proteger el recurso más valioso de la galaxia.",
+      "tmdb_id": 27205,
+      "media_type": "movie",
       "telegram_link": "https://t.me/c/3043513364/11/12"
     },
     {
-      "id": 2,
-      "title": "Breaking Bad",
-      "year": 2008,
-      "genre": ["Drama", "Crimen"],
-      "type": "serie",
-      "poster": "https://via.placeholder.com/300x450?text=Breaking+Bad",
-      "description": "Un profesor de química se convierte en narcotraficante.",
+      "tmdb_id": 1396,
+      "media_type": "tv",
       "telegram_link": "https://t.me/tu_canal/2"
     }
   ]
