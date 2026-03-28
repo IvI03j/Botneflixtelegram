@@ -25,6 +25,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const clearFilters = document.getElementById('clearFilters');
   const resultsCount = document.getElementById('resultsCount');
 
+  const detailModal = document.getElementById('detailModal');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+  const closeModalBackdrop = document.getElementById('closeModalBackdrop');
+
+  const modalPoster = document.getElementById('modalPoster');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalMeta = document.getElementById('modalMeta');
+  const modalGenres = document.getElementById('modalGenres');
+  const modalDescription = document.getElementById('modalDescription');
+  const modalWatchBtn = document.getElementById('modalWatchBtn');
+
   container.innerHTML = '<p class="loading">Cargando contenido...</p>';
 
   try {
@@ -51,6 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       typeFilter.value = '';
       renderMovies(allMovies);
     });
+
+    closeModalBtn.addEventListener('click', closeModal);
+    closeModalBackdrop.addEventListener('click', closeModal);
 
   } catch (error) {
     console.error('Error cargando contenido:', error);
@@ -126,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.className = 'card';
 
       const genresHtml = (movie.genre || [])
+        .slice(0, 3)
         .map(g => `<span class="tag">${g}</span>`)
         .join('');
 
@@ -146,21 +161,48 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${movie.year || 'Sin año'}${movie.rating ? ` • ⭐ ${Number(movie.rating).toFixed(1)}` : ''}
           </div>
 
-          <div class="description">
-            ${movie.description || 'Sin descripción.'}
-          </div>
-
           <div class="tags">
             ${genresHtml}
           </div>
 
-          <a class="open-btn" href="${movie.telegram_link || '#'}" target="_blank">
-            Ver en Telegram
-          </a>
+          <button class="details-btn">Ver en Telegram</button>
         </div>
       `;
 
+      card.querySelector('.details-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openModal(movie);
+      });
+
+      card.addEventListener('click', () => {
+        openModal(movie);
+      });
+
       container.appendChild(card);
     });
+  }
+
+  function openModal(movie) {
+    modalPoster.src = movie.backdrop || movie.poster || 'https://via.placeholder.com/800x450?text=Sin+imagen';
+    modalPoster.alt = movie.title || 'Sin título';
+    modalTitle.textContent = movie.title || 'Sin título';
+
+    modalMeta.textContent =
+      `${movie.type || 'contenido'} • ${movie.year || 'Sin año'}${movie.rating ? ` • ⭐ ${Number(movie.rating).toFixed(1)}` : ''}`;
+
+    modalGenres.innerHTML = (movie.genre || [])
+      .map(g => `<span class="tag">${g}</span>`)
+      .join('');
+
+    modalDescription.textContent = movie.description || 'Sin descripción disponible.';
+    modalWatchBtn.href = movie.telegram_link || '#';
+
+    detailModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    detailModal.classList.add('hidden');
+    document.body.style.overflow = '';
   }
 });
