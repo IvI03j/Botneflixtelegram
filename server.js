@@ -4,7 +4,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 
-const BOT_TOKEN = 'PON_AQUI_TU_TOKEN_NUEVO';
+const BOT_TOKEN = '8084822297:AAFTpIUQfR-LeeYXcP2c-93oqp40q0OxZTg';
 const WEBAPP_URL = 'https://botneflixtelegram.onrender.com';
 const PORT = 3000;
 
