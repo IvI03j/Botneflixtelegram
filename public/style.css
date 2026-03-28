@@ -21,7 +21,7 @@ body {
   min-height: 100vh;
   width: 100%;
   padding: 16px;
-  background: #141414;
+  background: linear-gradient(to bottom, #111, #141414);
 }
 
 .header {
@@ -31,7 +31,7 @@ body {
 .header h1 {
   margin: 0;
   color: #e50914;
-  font-size: 32px;
+  font-size: 34px;
   font-weight: bold;
   letter-spacing: 1px;
 }
@@ -42,20 +42,59 @@ body {
   font-size: 14px;
 }
 
+.filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.filters input,
+.filters select,
+.filters button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+}
+
+.filters input,
+.filters select {
+  background: #222;
+  color: white;
+}
+
+.filters button {
+  background: #e50914;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.filters button:hover {
+  background: #f6121d;
+}
+
 .movies-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
   gap: 16px;
   width: 100%;
 }
 
 .card {
-  background: #1f1f1f;
-  border-radius: 12px;
+  background: #1c1c1c;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  box-shadow: 0 5px 16px rgba(0,0,0,0.35);
   display: flex;
   flex-direction: column;
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
 }
 
 .card img {
@@ -87,6 +126,21 @@ body {
   font-size: 13px;
   color: #d6d6d6;
   line-height: 1.4;
+  min-height: 54px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  background: #2b2b2b;
+  color: #ddd;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
 }
 
 .card a {
@@ -102,9 +156,39 @@ body {
   font-size: 14px;
 }
 
+.card a:hover {
+  background: #f6121d;
+}
+
 .loading,
 .empty,
 .error {
   color: #b3b3b3;
   font-size: 15px;
+}
+
+@media (min-width: 700px) {
+  .filters {
+    grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    align-items: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 12px;
+  }
+
+  .header h1 {
+    font-size: 28px;
+  }
+
+  .movies-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .card img {
+    height: 220px;
+  }
 }
