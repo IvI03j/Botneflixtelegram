@@ -102,32 +102,9 @@ body {
   font-size: 14px;
 }
 
-.card a:hover {
-  background: #f6121d;
-}
-
 .loading,
 .empty,
 .error {
   color: #b3b3b3;
   font-size: 15px;
-}
-
-@media (max-width: 600px) {
-  .app {
-    padding: 12px;
-  }
-
-  .header h1 {
-    font-size: 28px;
-  }
-
-  .movies-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  .card img {
-    height: 220px;
-  }
 }
