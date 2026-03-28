@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.innerHTML = `
         <div class="poster-wrap">
           <img
-            src="${movie.poster || 'https://via.placeholder.com/300x450?text=Sin+imagen'}"
+            src="${movie.poster}"
             alt="${movie.title || 'Sin título'}"
             onerror="this.src='https://via.placeholder.com/300x450?text=Sin+imagen'"
           >
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <h3>${movie.title || 'Sin título'}</h3>
 
           <div class="meta">
-            ${movie.year || 'Sin año'}
+            ${movie.year || 'Sin año'} ${movie.rating ? `• ⭐ ${movie.rating.toFixed(1)}` : ''}
           </div>
 
           <div class="description">
