@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modalGenres = document.getElementById('modalGenres');
   const modalDescription = document.getElementById('modalDescription');
   const modalWatchBtn = document.getElementById('modalWatchBtn');
+  const modalTrailerBtn = document.getElementById('modalTrailerBtn');
 
   container.innerHTML = '<p class="loading">Cargando contenido...</p>';
 
@@ -246,6 +247,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     modalDescription.textContent = movie.description || 'Sin descripción disponible.';
     modalWatchBtn.href = movie.telegram_link || '#';
+
+    if (movie.trailer_url) {
+      modalTrailerBtn.href = movie.trailer_url;
+      modalTrailerBtn.classList.remove('hidden');
+    } else {
+      modalTrailerBtn.classList.add('hidden');
+      modalTrailerBtn.removeAttribute('href');
+    }
 
     detailModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
