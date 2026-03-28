@@ -15,6 +15,7 @@ if (tg) {
 }
 
 let allMovies = [];
+let featuredMovie = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('movies');
@@ -25,9 +26,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const clearFilters = document.getElementById('clearFilters');
   const resultsCount = document.getElementById('resultsCount');
 
+  const heroSection = document.getElementById('heroSection');
+  const heroTitle = document.getElementById('heroTitle');
+  const heroMeta = document.getElementById('heroMeta');
+  const heroGenres = document.getElementById('heroGenres');
+  const heroDescription = document.getElementById('heroDescription');
+  const heroWatchBtn = document.getElementById('heroWatchBtn');
+  const heroInfoBtn = document.getElementById('heroInfoBtn');
+
   const detailModal = document.getElementById('detailModal');
   const closeModalBtn = document.getElementById('closeModalBtn');
-  const closeModalBackdrop = document.getElementById('closeModalBackdrop');
 
   const modalPoster = document.getElementById('modalPoster');
   const modalTitle = document.getElementById('modalTitle');
@@ -49,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     fillFilters(allMovies);
     renderMovies(allMovies);
+    setupFeaturedMovie(allMovies);
 
     searchInput.addEventListener('input', applyFilters);
     genreFilter.addEventListener('change', applyFilters);
@@ -61,15 +70,55 @@ document.addEventListener('DOMContentLoaded', async () => {
       yearFilter.value = '';
       typeFilter.value = '';
       renderMovies(allMovies);
+      setupFeaturedMovie(allMovies);
     });
 
     closeModalBtn.addEventListener('click', closeModal);
-    closeModalBackdrop.addEventListener('click', closeModal);
+
+    heroInfoBtn.addEventListener('click', () => {
+      if (featuredMovie) openModal(featuredMovie);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
 
   } catch (error) {
     console.error('Error cargando contenido:', error);
     container.innerHTML = '<p class="error">Error al cargar el contenido.</p>';
     if (resultsCount) resultsCount.textContent = '';
+  }
+
+  function setupFeaturedMovie(movies) {
+    if (!movies || movies.length === 0) return;
+
+    const withBackdrop = movies.filter(movie => movie.backdrop);
+    const source = withBackdrop.length > 0 ? withBackdrop : movies;
+
+    featuredMovie = source[Math.floor(Math.random() * source.length)];
+
+    const bgImage = featuredMovie.backdrop || featuredMovie.poster || 'https://via.placeholder.com/1200x700?text=Sin+imagen';
+    heroSection.style.backgroundImage = `
+      linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.52) 48%, rgba(0,0,0,0.20) 100%),
+      url('${bgImage}')
+    `;
+
+    heroTitle.textContent = featuredMovie.title || 'Sin título';
+
+    heroMeta.textContent =
+      `${featuredMovie.type || 'contenido'} • ${featuredMovie.year || 'Sin año'}${featuredMovie.rating ? ` • ⭐ ${Number(featuredMovie.rating).toFixed(1)}` : ''}`;
+
+    heroGenres.innerHTML = (featuredMovie.genre || [])
+      .slice(0, 4)
+      .map(g => `<span class="tag">${g}</span>`)
+      .join('');
+
+    heroDescription.textContent =
+      featuredMovie.description || 'Sin descripción disponible.';
+
+    heroWatchBtn.href = featuredMovie.telegram_link || '#';
   }
 
   function fillFilters(movies) {
@@ -121,6 +170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     renderMovies(filtered);
+    setupFeaturedMovie(filtered.length ? filtered : allMovies);
   }
 
   function renderMovies(movies) {
@@ -183,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function openModal(movie) {
-    modalPoster.src = movie.backdrop || movie.poster || 'https://via.placeholder.com/800x450?text=Sin+imagen';
+    modalPoster.src = movie.backdrop || movie.poster || 'https://via.placeholder.com/1200x700?text=Sin+imagen';
     modalPoster.alt = movie.title || 'Sin título';
     modalTitle.textContent = movie.title || 'Sin título';
 
@@ -199,10 +249,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     detailModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+
+    if (tg && typeof tg.BackButton !== 'undefined') {
+      tg.BackButton.show();
+      tg.BackButton.onClick(closeModal);
+    }
   }
 
   function closeModal() {
     detailModal.classList.add('hidden');
     document.body.style.overflow = '';
+
+    if (tg && typeof tg.BackButton !== 'undefined') {
+      tg.BackButton.hide();
+    }
   }
 });
