@@ -1,133 +1,62 @@
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100%;
-  background: #141414;
-  color: white;
-  font-family: Arial, sans-serif;
-  overflow-x: hidden;
-}
+const tg = window.Telegram?.WebApp;
 
-body {
-  min-height: 100vh;
-}
+if (tg) {
+  tg.ready();
+  tg.expand();
 
-* {
-  box-sizing: border-box;
-}
+  try {
+    tg.setHeaderColor('#141414');
+    tg.setBackgroundColor('#141414');
+  } catch (e) {}
 
-.app {
-  min-height: 100vh;
-  width: 100%;
-  padding: 16px;
-  background: #141414;
-}
-
-.header {
-  margin-bottom: 20px;
-}
-
-.header h1 {
-  margin: 0;
-  color: #e50914;
-  font-size: 32px;
-  font-weight: bold;
-  letter-spacing: 1px;
-}
-
-.subtitle {
-  margin: 6px 0 0;
-  color: #b3b3b3;
-  font-size: 14px;
-}
-
-.movies-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
-  width: 100%;
-}
-
-.card {
-  background: #1f1f1f;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
-  display: flex;
-  flex-direction: column;
-}
-
-.card img {
-  width: 100%;
-  height: 240px;
-  object-fit: cover;
-  background: #2a2a2a;
-}
-
-.card-content {
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.card h3 {
-  margin: 0;
-  font-size: 16px;
-  line-height: 1.2;
-}
-
-.meta {
-  font-size: 13px;
-  color: #b3b3b3;
-}
-
-.description {
-  font-size: 13px;
-  color: #d6d6d6;
-  line-height: 1.4;
-}
-
-.card a {
-  display: inline-block;
-  text-align: center;
-  margin-top: 6px;
-  background: #e50914;
-  color: white;
-  text-decoration: none;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.card a:hover {
-  background: #f6121d;
-}
-
-.loading,
-.empty,
-.error {
-  color: #b3b3b3;
-  font-size: 15px;
-}
-
-@media (max-width: 600px) {
-  .app {
-    padding: 12px;
-  }
-
-  .header h1 {
-    font-size: 28px;
-  }
-
-  .movies-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  .card img {
-    height: 220px;
+  if (typeof tg.disableVerticalSwipes === 'function') {
+    tg.disableVerticalSwipes();
   }
 }
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const container = document.getElementById('movies');
+  container.innerHTML = '<p class="loading">Cargando contenido...</p>';
+
+  try {
+    const response = await fetch('/api/movies');
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    const movies = await response.json();
+
+    container.innerHTML = '';
+
+    if (!Array.isArray(movies) || movies.length === 0) {
+      container.innerHTML = '<p class="empty">No hay contenido para mostrar.</p>';
+      return;
+    }
+
+    movies.forEach(movie => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      card.innerHTML = `
+        <img src="${movie.poster || 'https://via.placeholder.com/300x450?text=Sin+imagen'}"
+             alt="${movie.title || 'Sin título'}"
+             onerror="this.src='https://via.placeholder.com/300x450?text=Sin+imagen'">
+        <div class="card-content">
+          <h3>${movie.title || 'Sin título'}</h3>
+          <div class="meta">
+            ${movie.year || 'Sin año'} • ${Array.isArray(movie.genre) ? movie.genre.join(', ') : ''}
+          </div>
+          <div class="description">${movie.description || 'Sin descripción.'}</div>
+          <a href="${movie.telegram_link || '#'}" target="_blank">Ver en Telegram</a>
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+
+  } catch (error) {
+    console.error('Error cargando contenido:', error);
+    container.innerHTML = '<p class="error">Error al cargar el contenido.</p>';
+  }
+});
