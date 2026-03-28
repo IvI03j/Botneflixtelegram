@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (error) {
     console.error('Error cargando contenido:', error);
     container.innerHTML = '<p class="error">Error al cargar el contenido.</p>';
-    resultsCount.textContent = '';
+    if (resultsCount) resultsCount.textContent = '';
   }
 
   function fillFilters(movies) {
@@ -111,7 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderMovies(movies) {
     container.innerHTML = '';
-    resultsCount.textContent = `${movies.length} resultado${movies.length === 1 ? '' : 's'}`;
+
+    if (resultsCount) {
+      resultsCount.textContent = `${movies.length} resultado${movies.length === 1 ? '' : 's'}`;
+    }
 
     if (!Array.isArray(movies) || movies.length === 0) {
       container.innerHTML = '<p class="empty">No se encontró contenido con esos filtros.</p>';
@@ -129,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.innerHTML = `
         <div class="poster-wrap">
           <img
-            src="${movie.poster}"
+            src="${movie.poster || 'https://via.placeholder.com/300x450?text=Sin+imagen'}"
             alt="${movie.title || 'Sin título'}"
             onerror="this.src='https://via.placeholder.com/300x450?text=Sin+imagen'"
           >
@@ -140,14 +143,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           <h3>${movie.title || 'Sin título'}</h3>
 
           <div class="meta">
-            ${movie.year || 'Sin año'} ${movie.rating ? `• ⭐ ${movie.rating.toFixed(1)}` : ''}
+            ${movie.year || 'Sin año'}${movie.rating ? ` • ⭐ ${Number(movie.rating).toFixed(1)}` : ''}
           </div>
 
           <div class="description">
             ${movie.description || 'Sin descripción.'}
           </div>
 
-          <div class="tags">${genresHtml}</div>
+          <div class="tags">
+            ${genresHtml}
+          </div>
 
           <a class="open-btn" href="${movie.telegram_link || '#'}" target="_blank">
             Ver en Telegram
