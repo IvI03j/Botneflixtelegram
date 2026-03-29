@@ -9,6 +9,10 @@ const WEBAPP_URL = process.env.WEBAPP_URL;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PORT = process.env.PORT || 3000;
 
+// GRUPO Y TEMA PERMITIDOS
+const ALLOWED_CHAT_ID = -1003043513364;
+const ALLOWED_THREAD_ID = 38;
+
 if (!BOT_TOKEN || !WEBAPP_URL || !TMDB_API_KEY) {
   console.error('Faltan BOT_TOKEN, WEBAPP_URL o TMDB_API_KEY en las variables de entorno');
   process.exit(1);
@@ -150,39 +154,73 @@ app.get('/api/search-tmdb', async (req, res) => {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// COMANDO START TEMPORAL SIN BOTÓN
-bot.start((ctx) => {
-  ctx.reply('🤖 Bot en modo detección.\nEscribe en el tema que quieras usar y revisaré el chat_id y el thread_id.');
+// FUNCIÓN PARA SABER SI ESTÁ EN EL TEMA CORRECTO
+function isAllowedTopic(ctx) {
+  const chatId = ctx.chat?.id;
+  const threadId =
+    ctx.message?.message_thread_id ||
+    ctx.callbackQuery?.message?.message_thread_id;
+
+  return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
+}
+
+// BLOQUEAR TODO FUERA DEL TEMA PERMITIDO
+bot.use((ctx, next) => {
+  if (!isAllowedTopic(ctx)) {
+    return;
+  }
+  return next();
 });
 
-// DETECTOR TEMPORAL
-bot.on('message', async (ctx) => {
-  try {
-    const chatId = ctx.chat?.id;
-    const threadId = ctx.message?.message_thread_id || 'sin tema';
-    const chatType = ctx.chat?.type || 'desconocido';
-    const chatTitle = ctx.chat?.title || ctx.chat?.username || 'sin título';
-    const text = ctx.message?.text || '[no es texto]';
+// COMANDO START SOLO EN EL TEMA PERMITIDO
+bot.start((ctx) => {
+  ctx.reply(
+    '🎬 Biblioteca del grupo\n\nPulsa el botón para abrir el catálogo:',
+    {
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: '🍿 Abrir biblioteca',
+            web_app: { url: WEBAPP_URL }
+          }
+        ]]
+      }
+    }
+  );
+});
 
-    console.log('==============================');
-    console.log('MENSAJE RECIBIDO');
-    console.log('CHAT ID:', chatId);
-    console.log('THREAD ID:', threadId);
-    console.log('CHAT TYPE:', chatType);
-    console.log('CHAT TITLE:', chatTitle);
-    console.log('TEXT:', text);
-    console.log('==============================');
+// COMANDO BIBLIOTECA SOLO EN EL TEMA PERMITIDO
+bot.command('biblioteca', (ctx) => {
+  ctx.reply(
+    '🎬 Biblioteca oficial del grupo\n\nPulsa el botón para abrir el catálogo:',
+    {
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: '🍿 Abrir biblioteca',
+            web_app: { url: WEBAPP_URL }
+          }
+        ]]
+      }
+    }
+  );
+});
 
-    await ctx.reply(
-      `📌 Datos detectados:\n\n` +
-      `Chat ID: ${chatId}\n` +
-      `Thread ID: ${threadId}\n` +
-      `Tipo de chat: ${chatType}\n` +
-      `Título: ${chatTitle}`
-    );
-  } catch (error) {
-    console.error('Error en detector de IDs:', error.message);
-  }
+// COMANDO PARA PUBLICAR EL BOTÓN EN EL TEMA
+bot.command('publicar_biblioteca', async (ctx) => {
+  await ctx.reply(
+    '🎬 Biblioteca oficial del grupo\n\nPulsa el botón para abrir el catálogo:',
+    {
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: '🍿 Abrir biblioteca',
+            web_app: { url: WEBAPP_URL }
+          }
+        ]]
+      }
+    }
+  );
 });
 
 app.listen(PORT, () => {
