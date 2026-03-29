@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 const ALLOWED_CHAT_ID = -1003043513364;
 const ALLOWED_THREAD_ID = 38;
 
-// Username real del bot SIN @
+// CAMBIA ESTO por el username real de tu bot SIN @
 const BOT_USERNAME = 'TU_USERNAME_DEL_BOT';
 
 if (!BOT_TOKEN || !WEBAPP_URL || !TMDB_API_KEY) {
@@ -179,11 +179,19 @@ async function sendMiniAppButtonPrivate(ctx) {
   );
 }
 
-async function sendAccessMessageInTopic(ctx) {
+async function sendOpenBotButton(ctx) {
   await ctx.reply(
-    `🎬 Biblioteca oficial\n\n` +
-    `🤖 Abrir bot:\nhttps://t.me/${BOT_USERNAME}?start=biblioteca\n\n` +
-    `🌐 Abrir web:\n${WEBAPP_URL}`
+    '🎬 Biblioteca oficial\n\nPulsa el botón para abrir el bot:',
+    {
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: '🤖 Abrir bot',
+            url: `https://t.me/${BOT_USERNAME}?start=biblioteca`
+          }
+        ]]
+      }
+    }
   );
 }
 
@@ -192,7 +200,7 @@ bot.on('message', async (ctx) => {
     const text = (ctx.message?.text || '').trim().toLowerCase();
     const chatType = ctx.chat?.type;
 
-    // Chat privado -> miniapp real
+    // CHAT PRIVADO -> MINIAPP REAL
     if (chatType === 'private') {
       if (
         text.startsWith('/start') ||
@@ -203,14 +211,14 @@ bot.on('message', async (ctx) => {
       return;
     }
 
-    // Tema permitido del grupo -> mensaje con accesos
+    // GRUPO/TEMA -> SOLO BOTÓN ABRIR BOT EN EL TEMA PERMITIDO
     if (isAllowedTopic(ctx)) {
       if (
         text.startsWith('/biblioteca') ||
         text.startsWith('/publicar_biblioteca') ||
         text.startsWith('/start')
       ) {
-        await sendAccessMessageInTopic(ctx);
+        await sendOpenBotButton(ctx);
       }
     }
   } catch (error) {
