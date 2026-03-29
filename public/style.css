@@ -371,6 +371,27 @@ body {
   border: none;
 }
 
+.back-modal-btn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 1005;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0,0,0,0.72);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.back-modal-btn:hover {
+  background: rgba(0,0,0,0.86);
+}
+
 .close-modal {
   position: fixed;
   top: 14px;
@@ -573,5 +594,10 @@ body {
   .watch-btn,
   .trailer-btn {
     width: 100%;
+  }
+
+  .back-modal-btn {
+    font-size: 13px;
+    padding: 0 14px;
   }
 }
