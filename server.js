@@ -9,12 +9,8 @@ const WEBAPP_URL = process.env.WEBAPP_URL;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PORT = process.env.PORT || 3000;
 
-// Grupo y tema permitidos
+// SOLO ESTE GRUPO
 const ALLOWED_CHAT_ID = -1003043513364;
-const ALLOWED_THREAD_ID = 38;
-
-// CAMBIA ESTO por el username real de tu bot SIN @
-const BOT_USERNAME = 'TU_USERNAME_DEL_BOT';
 
 if (!BOT_TOKEN || !WEBAPP_URL || !TMDB_API_KEY) {
   console.error('Faltan BOT_TOKEN, WEBAPP_URL o TMDB_API_KEY en las variables de entorno');
@@ -50,14 +46,12 @@ async function fetchTMDBDetails(tmdbId, mediaType) {
 
 function getTrailerUrl(tmdbData) {
   const videos = tmdbData.videos?.results || [];
-
   const trailer = videos.find(video =>
     video.site === 'YouTube' &&
     video.type === 'Trailer'
   );
 
   if (!trailer) return null;
-
   return `https://www.youtube.com/watch?v=${trailer.key}`;
 }
 
@@ -157,15 +151,17 @@ app.get('/api/search-tmdb', async (req, res) => {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-function isAllowedTopic(ctx) {
+// SOLO FUNCIONA EN EL GRUPO Y SOLO EN GENERAL (SIN TEMA)
+function isAllowedGeneralGroup(ctx) {
   const chatId = ctx.chat?.id;
   const threadId = ctx.message?.message_thread_id;
-  return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
+
+  return chatId === ALLOWED_CHAT_ID && !threadId;
 }
 
-async function sendMiniAppButtonPrivate(ctx) {
+async function sendMiniAppButtonInGeneral(ctx) {
   await ctx.reply(
-    '🎬 Bienvenido a tu biblioteca.\n\nPulsa el botón para abrir la miniapp:',
+    '🎬 Biblioteca oficial\n\nPulsa el botón para abrir la miniapp:',
     {
       reply_markup: {
         inline_keyboard: [[
@@ -179,47 +175,30 @@ async function sendMiniAppButtonPrivate(ctx) {
   );
 }
 
-async function sendOpenBotButton(ctx) {
-  await ctx.reply(
-    '🎬 Biblioteca oficial\n\nPulsa el botón para abrir el bot:',
-    {
-      reply_markup: {
-        inline_keyboard: [[
-          {
-            text: '🤖 Abrir bot',
-            url: `https://t.me/${BOT_USERNAME}?start=biblioteca`
-          }
-        ]]
-      }
-    }
-  );
-}
-
 bot.on('message', async (ctx) => {
   try {
     const text = (ctx.message?.text || '').trim().toLowerCase();
-    const chatType = ctx.chat?.type;
+    const chatId = ctx.chat?.id;
+    const threadId = ctx.message?.message_thread_id || null;
 
-    // CHAT PRIVADO -> MINIAPP REAL
-    if (chatType === 'private') {
-      if (
-        text.startsWith('/start') ||
-        text.startsWith('/biblioteca')
-      ) {
-        await sendMiniAppButtonPrivate(ctx);
-      }
+    console.log('CHAT ID:', chatId);
+    console.log('THREAD ID:', threadId);
+    console.log('TEXT:', text);
+
+    // Ignora todo fuera del grupo general
+    if (!isAllowedGeneralGroup(ctx)) {
+      console.log('IGNORADO: no está en general del grupo');
       return;
     }
 
-    // GRUPO/TEMA -> SOLO BOTÓN ABRIR BOT EN EL TEMA PERMITIDO
-    if (isAllowedTopic(ctx)) {
-      if (
-        text.startsWith('/biblioteca') ||
-        text.startsWith('/publicar_biblioteca') ||
-        text.startsWith('/start')
-      ) {
-        await sendOpenBotButton(ctx);
-      }
+    console.log('ACEPTADO: mensaje en general del grupo');
+
+    if (
+      text.startsWith('/start') ||
+      text.startsWith('/biblioteca') ||
+      text.startsWith('/publicar_biblioteca')
+    ) {
+      await sendMiniAppButtonInGeneral(ctx);
     }
   } catch (error) {
     console.error('Error en manejo de mensajes:', error.message);
