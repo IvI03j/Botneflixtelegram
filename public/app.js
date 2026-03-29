@@ -111,6 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function sendMovieToTopic(tmdbId) {
     try {
+      // opcional: desactivar botones mientras envía
+      heroWatchBtn.style.pointerEvents = 'none';
+      modalWatchBtn.style.pointerEvents = 'none';
+
       const response = await fetch('/api/send-to-topic', {
         method: 'POST',
         headers: {
@@ -125,10 +129,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error(data.error || 'No se pudo enviar el contenido');
       }
 
-      alert('✅ Contenido enviado al tema del grupo');
+      // Cerrar la web automáticamente si estamos dentro de Telegram
+      if (tg && typeof tg.close === 'function') {
+        tg.close();
+      } else {
+        alert('✅ Contenido enviado al tema del grupo');
+      }
+
     } catch (error) {
       console.error('Error enviando contenido:', error);
       alert('❌ Error al enviar el contenido al tema');
+    } finally {
+      heroWatchBtn.style.pointerEvents = '';
+      modalWatchBtn.style.pointerEvents = '';
     }
   }
 
