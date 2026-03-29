@@ -9,9 +9,12 @@ const WEBAPP_URL = process.env.WEBAPP_URL;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PORT = process.env.PORT || 3000;
 
-// Grupo y tema donde el bot puede actuar
+// Grupo y tema permitidos
 const ALLOWED_CHAT_ID = -1003043513364;
 const ALLOWED_THREAD_ID = 38;
+
+// Username real de tu bot SIN @
+const BOT_USERNAME = 'TU_USERNAME_DEL_BOT';
 
 if (!BOT_TOKEN || !WEBAPP_URL || !TMDB_API_KEY) {
   console.error('Faltan BOT_TOKEN, WEBAPP_URL o TMDB_API_KEY en las variables de entorno');
@@ -47,14 +50,12 @@ async function fetchTMDBDetails(tmdbId, mediaType) {
 
 function getTrailerUrl(tmdbData) {
   const videos = tmdbData.videos?.results || [];
-
   const trailer = videos.find(video =>
     video.site === 'YouTube' &&
     video.type === 'Trailer'
   );
 
   if (!trailer) return null;
-
   return `https://www.youtube.com/watch?v=${trailer.key}`;
 }
 
@@ -108,53 +109,6 @@ app.get('/api/movies', async (req, res) => {
   }
 });
 
-app.get('/api/search-tmdb', async (req, res) => {
-  try {
-    const query = req.query.query;
-    const mediaType = req.query.media_type || 'movie';
-
-    if (!query) {
-      return res.status(400).json({ error: 'Falta el parámetro query' });
-    }
-
-    if (!['movie', 'tv'].includes(mediaType)) {
-      return res.status(400).json({ error: 'media_type debe ser movie o tv' });
-    }
-
-    const url = `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&language=es-ES&query=${encodeURIComponent(query)}`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Error buscando en TMDB: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    const results = (data.results || []).slice(0, 10).map(item => {
-      const title = mediaType === 'movie' ? item.title : item.name;
-      const releaseDate = mediaType === 'movie' ? item.release_date : item.first_air_date;
-      const year = releaseDate ? parseInt(releaseDate.slice(0, 4)) : null;
-
-      return {
-        id: item.id,
-        title: title || 'Sin título',
-        year,
-        poster: item.poster_path
-          ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-          : 'https://via.placeholder.com/300x450?text=Sin+imagen',
-        overview: item.overview || 'Sin descripción.',
-        type: mediaType
-      };
-    });
-
-    res.json(results);
-  } catch (error) {
-    console.error('Error en /api/search-tmdb:', error);
-    res.status(500).json({ error: 'Error buscando en TMDB' });
-  }
-});
-
-// NUEVO ENDPOINT: copiar película al tema del bot
 app.post('/api/send-to-topic', async (req, res) => {
   try {
     const { tmdb_id } = req.body;
@@ -196,19 +150,34 @@ const bot = new Telegraf(BOT_TOKEN);
 function isAllowedTopic(ctx) {
   const chatId = ctx.chat?.id;
   const threadId = ctx.message?.message_thread_id;
-
   return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
 }
 
-async function sendLibraryButton(ctx) {
+async function sendMiniAppButtonPrivate(ctx) {
   await ctx.reply(
-    '🎬 Biblioteca oficial del grupo\n\nPulsa el botón para abrir el catálogo:',
+    '🎬 Bienvenido a tu biblioteca.\n\nPulsa el botón para abrir la miniapp:',
     {
       reply_markup: {
         inline_keyboard: [[
           {
             text: '🍿 Abrir biblioteca',
-            url: WEBAPP_URL
+            web_app: { url: WEBAPP_URL }
+          }
+        ]]
+      }
+    }
+  );
+}
+
+async function sendBotLinkInTopic(ctx) {
+  await ctx.reply(
+    '🎬 Biblioteca oficial del grupo\n\nPara abrir la miniapp, entra al bot privado desde este botón:',
+    {
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: '🤖 Abrir bot biblioteca',
+            url: `https://t.me/${BOT_USERNAME}?start=biblioteca`
           }
         ]]
       }
@@ -218,20 +187,29 @@ async function sendLibraryButton(ctx) {
 
 bot.on('message', async (ctx) => {
   try {
-    const text = ctx.message?.text || '';
+    const text = (ctx.message?.text || '').trim().toLowerCase();
+    const chatType = ctx.chat?.type;
 
-    if (!isAllowedTopic(ctx)) {
+    // CHAT PRIVADO -> MINIAPP REAL
+    if (chatType === 'private') {
+      if (
+        text.startsWith('/start') ||
+        text.startsWith('/biblioteca')
+      ) {
+        await sendMiniAppButtonPrivate(ctx);
+      }
       return;
     }
 
-    const normalizedText = text.trim().toLowerCase();
-
-    if (
-      normalizedText.includes('/biblioteca') ||
-      normalizedText.includes('/publicar_biblioteca') ||
-      normalizedText.includes('/start')
-    ) {
-      await sendLibraryButton(ctx);
+    // GRUPO/TEMA -> SOLO ENLACE AL BOT
+    if (isAllowedTopic(ctx)) {
+      if (
+        text.startsWith('/biblioteca') ||
+        text.startsWith('/publicar_biblioteca') ||
+        text.startsWith('/start')
+      ) {
+        await sendBotLinkInTopic(ctx);
+      }
     }
   } catch (error) {
     console.error('Error en manejo de mensajes:', error.message);
