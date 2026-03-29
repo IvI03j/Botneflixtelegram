@@ -9,7 +9,6 @@ const WEBAPP_URL = process.env.WEBAPP_URL;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PORT = process.env.PORT || 3000;
 
-// SOLO ESTE GRUPO
 const ALLOWED_CHAT_ID = -1003043513364;
 
 if (!BOT_TOKEN || !WEBAPP_URL || !TMDB_API_KEY) {
@@ -103,63 +102,16 @@ app.get('/api/movies', async (req, res) => {
   }
 });
 
-app.get('/api/search-tmdb', async (req, res) => {
-  try {
-    const query = req.query.query;
-    const mediaType = req.query.media_type || 'movie';
-
-    if (!query) {
-      return res.status(400).json({ error: 'Falta el parámetro query' });
-    }
-
-    if (!['movie', 'tv'].includes(mediaType)) {
-      return res.status(400).json({ error: 'media_type debe ser movie o tv' });
-    }
-
-    const url = `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&language=es-ES&query=${encodeURIComponent(query)}`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Error buscando en TMDB: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    const results = (data.results || []).slice(0, 10).map(item => {
-      const title = mediaType === 'movie' ? item.title : item.name;
-      const releaseDate = mediaType === 'movie' ? item.release_date : item.first_air_date;
-      const year = releaseDate ? parseInt(releaseDate.slice(0, 4)) : null;
-
-      return {
-        id: item.id,
-        title: title || 'Sin título',
-        year,
-        poster: item.poster_path
-          ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-          : 'https://via.placeholder.com/300x450?text=Sin+imagen',
-        overview: item.overview || 'Sin descripción.',
-        type: mediaType
-      };
-    });
-
-    res.json(results);
-  } catch (error) {
-    console.error('Error en /api/search-tmdb:', error);
-    res.status(500).json({ error: 'Error buscando en TMDB' });
-  }
-});
-
 const bot = new Telegraf(BOT_TOKEN);
 
-// SOLO FUNCIONA EN EL GRUPO Y SOLO EN GENERAL (SIN TEMA)
-function isAllowedGeneralGroup(ctx) {
+function isGeneralInAllowedGroup(ctx) {
   const chatId = ctx.chat?.id;
   const threadId = ctx.message?.message_thread_id;
 
-  return chatId === ALLOWED_CHAT_ID && !threadId;
+  return chatId === ALLOWED_CHAT_ID && (threadId === undefined || threadId === null);
 }
 
-async function sendMiniAppButtonInGeneral(ctx) {
+async function sendMiniAppButton(ctx) {
   await ctx.reply(
     '🎬 Biblioteca oficial\n\nPulsa el botón para abrir la miniapp:',
     {
@@ -177,28 +129,39 @@ async function sendMiniAppButtonInGeneral(ctx) {
 
 bot.on('message', async (ctx) => {
   try {
-    const text = (ctx.message?.text || '').trim().toLowerCase();
     const chatId = ctx.chat?.id;
-    const threadId = ctx.message?.message_thread_id || null;
+    const threadId = ctx.message?.message_thread_id;
+    const text = ctx.message?.text || '[sin texto]';
 
+    console.log('========================');
     console.log('CHAT ID:', chatId);
     console.log('THREAD ID:', threadId);
     console.log('TEXT:', text);
+    console.log('========================');
 
-    // Ignora todo fuera del grupo general
-    if (!isAllowedGeneralGroup(ctx)) {
-      console.log('IGNORADO: no está en general del grupo');
+    if (chatId !== ALLOWED_CHAT_ID) {
+      console.log('IGNORADO: chat no permitido');
       return;
     }
 
-    console.log('ACEPTADO: mensaje en general del grupo');
+    if (threadId !== undefined && threadId !== null) {
+      console.log('IGNORADO: está en un tema, no en general');
+      return;
+    }
+
+    console.log('ACEPTADO: mensaje en general');
+
+    await ctx.reply(`✅ Estoy funcionando en GENERAL.\nTexto recibido: ${text}`);
+
+    const normalizedText = text.trim().toLowerCase();
 
     if (
-      text.startsWith('/start') ||
-      text.startsWith('/biblioteca') ||
-      text.startsWith('/publicar_biblioteca')
+      normalizedText.startsWith('/start') ||
+      normalizedText.startsWith('/biblioteca') ||
+      normalizedText.startsWith('/publicar_biblioteca')
     ) {
-      await sendMiniAppButtonInGeneral(ctx);
+      console.log('Enviando botón miniapp...');
+      await sendMiniAppButton(ctx);
     }
   } catch (error) {
     console.error('Error en manejo de mensajes:', error.message);
