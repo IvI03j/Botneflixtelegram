@@ -103,6 +103,52 @@ app.get('/api/movies', async (req, res) => {
   }
 });
 
+app.get('/api/search-tmdb', async (req, res) => {
+  try {
+    const query = req.query.query;
+    const mediaType = req.query.media_type || 'movie';
+
+    if (!query) {
+      return res.status(400).json({ error: 'Falta el parámetro query' });
+    }
+
+    if (!['movie', 'tv'].includes(mediaType)) {
+      return res.status(400).json({ error: 'media_type debe ser movie o tv' });
+    }
+
+    const url = `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&language=es-ES&query=${encodeURIComponent(query)}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Error buscando en TMDB: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const results = (data.results || []).slice(0, 10).map(item => {
+      const title = mediaType === 'movie' ? item.title : item.name;
+      const releaseDate = mediaType === 'movie' ? item.release_date : item.first_air_date;
+      const year = releaseDate ? parseInt(releaseDate.slice(0, 4)) : null;
+
+      return {
+        id: item.id,
+        title: title || 'Sin título',
+        year,
+        poster: item.poster_path
+          ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+          : 'https://via.placeholder.com/300x450?text=Sin+imagen',
+        overview: item.overview || 'Sin descripción.',
+        type: mediaType
+      };
+    });
+
+    res.json(results);
+  } catch (error) {
+    console.error('Error en /api/search-tmdb:', error);
+    res.status(500).json({ error: 'Error buscando en TMDB' });
+  }
+});
+
 const bot = new Telegraf(BOT_TOKEN);
 
 function isAllowedTopic(ctx) {
@@ -120,7 +166,7 @@ async function sendLibraryButton(ctx) {
         inline_keyboard: [[
           {
             text: '🍿 Abrir biblioteca',
-            web_app: { url: WEBAPP_URL }
+            url: WEBAPP_URL
           }
         ]]
       }
@@ -131,25 +177,10 @@ async function sendLibraryButton(ctx) {
 bot.on('message', async (ctx) => {
   try {
     const text = ctx.message?.text || '';
-    const chatId = ctx.chat?.id;
-    const threadId = ctx.message?.message_thread_id;
-
-    console.log('========================');
-    console.log('MENSAJE RECIBIDO');
-    console.log('CHAT ID:', chatId);
-    console.log('THREAD ID:', threadId);
-    console.log('TEXT RAW:', JSON.stringify(text));
-    console.log('========================');
 
     if (!isAllowedTopic(ctx)) {
-      console.log('IGNORADO: fuera del tema permitido');
       return;
     }
-
-    console.log('ACEPTADO: dentro del tema permitido');
-
-    // RESPUESTA DE PRUEBA
-    await ctx.reply(`✅ He recibido tu mensaje en el tema correcto.\nTexto: ${text || '[vacío]'}`);
 
     const normalizedText = text.trim().toLowerCase();
 
@@ -158,7 +189,6 @@ bot.on('message', async (ctx) => {
       normalizedText.includes('/publicar_biblioteca') ||
       normalizedText.includes('/start')
     ) {
-      console.log('COMANDO DETECTADO, enviando botón...');
       await sendLibraryButton(ctx);
     }
   } catch (error) {
