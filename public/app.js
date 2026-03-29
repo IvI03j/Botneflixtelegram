@@ -82,23 +82,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (featuredMovie) openModal(featuredMovie);
     });
 
-    heroWatchBtn.addEventListener('click', (e) => {
+    heroWatchBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      if (featuredMovie?.telegram_link) {
-        openTelegramTarget(featuredMovie.telegram_link);
+      if (featuredMovie) {
+        await sendMovieToTopic(featuredMovie.id);
       }
     });
 
-    modalWatchBtn.addEventListener('click', (e) => {
+    modalWatchBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      const link = modalWatchBtn.getAttribute('data-link');
-      if (link) {
-        openTelegramTarget(link);
+      const tmdbId = modalWatchBtn.getAttribute('data-tmdb-id');
+      if (tmdbId) {
+        await sendMovieToTopic(tmdbId);
       }
-    });
-
-    modalTrailerBtn.addEventListener('click', (e) => {
-      // el tráiler sí puede abrirse normal
     });
 
     document.addEventListener('keydown', (e) => {
@@ -113,18 +109,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (resultsCount) resultsCount.textContent = '';
   }
 
-  function openTelegramTarget(link) {
-    if (!link) return;
-
+  async function sendMovieToTopic(tmdbId) {
     try {
-      if (tg && typeof tg.openTelegramLink === 'function' && link.includes('t.me')) {
-        tg.openTelegramLink(link);
-      } else {
-        window.open(link, '_blank');
+      const response = await fetch('/api/send-to-topic', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ tmdb_id: tmdbId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'No se pudo enviar el contenido');
       }
+
+      alert('✅ Contenido enviado al tema del grupo');
     } catch (error) {
-      console.error('Error abriendo enlace de Telegram:', error);
-      window.open(link, '_blank');
+      console.error('Error enviando contenido:', error);
+      alert('❌ Error al enviar el contenido al tema');
     }
   }
 
@@ -280,7 +284,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       .join('');
 
     modalDescription.textContent = movie.description || 'Sin descripción disponible.';
-    modalWatchBtn.setAttribute('data-link', movie.telegram_link || '#');
+    modalWatchBtn.setAttribute('data-tmdb-id', movie.id);
 
     if (movie.trailer_url) {
       modalTrailerBtn.href = movie.trailer_url;
