@@ -154,63 +154,18 @@ app.get('/api/search-tmdb', async (req, res) => {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// FUNCIÓN PARA SABER SI ESTÁ EN EL TEMA CORRECTO
 function isAllowedTopic(ctx) {
   const chatId = ctx.chat?.id;
-  const threadId =
-    ctx.message?.message_thread_id ||
-    ctx.callbackQuery?.message?.message_thread_id;
+  const threadId = ctx.message?.message_thread_id;
 
   return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
 }
 
-// BLOQUEAR TODO FUERA DEL TEMA PERMITIDO
-bot.use((ctx, next) => {
-  if (!isAllowedTopic(ctx)) {
-    return;
-  }
-  return next();
-});
-
-// COMANDO START SOLO EN EL TEMA PERMITIDO
-bot.start((ctx) => {
-  ctx.reply(
-    '🎬 Biblioteca del grupo\n\nPulsa el botón para abrir el catálogo:',
-    {
-      reply_markup: {
-        inline_keyboard: [[
-          {
-            text: '🍿 Abrir biblioteca',
-            web_app: { url: WEBAPP_URL }
-          }
-        ]]
-      }
-    }
-  );
-});
-
-// COMANDO BIBLIOTECA SOLO EN EL TEMA PERMITIDO
-bot.command('biblioteca', (ctx) => {
-  ctx.reply(
-    '🎬 Biblioteca oficial del grupo\n\nPulsa el botón para abrir el catálogo:',
-    {
-      reply_markup: {
-        inline_keyboard: [[
-          {
-            text: '🍿 Abrir biblioteca',
-            web_app: { url: WEBAPP_URL }
-          }
-        ]]
-      }
-    }
-  );
-});
-
-// COMANDO PARA PUBLICAR EL BOTÓN EN EL TEMA
-bot.command('publicar_biblioteca', async (ctx) => {
+async function sendLibraryButton(ctx) {
   await ctx.reply(
     '🎬 Biblioteca oficial del grupo\n\nPulsa el botón para abrir el catálogo:',
     {
+      message_thread_id: ALLOWED_THREAD_ID,
       reply_markup: {
         inline_keyboard: [[
           {
@@ -221,6 +176,38 @@ bot.command('publicar_biblioteca', async (ctx) => {
       }
     }
   );
+}
+
+// MANEJADOR PRINCIPAL DE MENSAJES
+bot.on('message', async (ctx) => {
+  try {
+    const text = ctx.message?.text || '';
+    const chatId = ctx.chat?.id;
+    const threadId = ctx.message?.message_thread_id;
+
+    console.log('CHAT ID:', chatId);
+    console.log('THREAD ID:', threadId);
+    console.log('TEXT:', text);
+
+    // Ignorar todo fuera del tema permitido
+    if (!isAllowedTopic(ctx)) {
+      return;
+    }
+
+    const normalizedText = text.trim().toLowerCase();
+
+    if (
+      normalizedText === '/biblioteca' ||
+      normalizedText === '/biblioteca@' + (ctx.botInfo?.username || '').toLowerCase() ||
+      normalizedText === '/publicar_biblioteca' ||
+      normalizedText === '/publicar_biblioteca@' + (ctx.botInfo?.username || '').toLowerCase() ||
+      normalizedText === '/start'
+    ) {
+      await sendLibraryButton(ctx);
+    }
+  } catch (error) {
+    console.error('Error en manejo de mensajes:', error.message);
+  }
 });
 
 app.listen(PORT, () => {
