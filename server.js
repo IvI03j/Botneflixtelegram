@@ -178,7 +178,6 @@ async function sendLibraryButton(ctx) {
   );
 }
 
-// MANEJADOR PRINCIPAL DE MENSAJES
 bot.on('message', async (ctx) => {
   try {
     const text = ctx.message?.text || '';
@@ -187,22 +186,26 @@ bot.on('message', async (ctx) => {
 
     console.log('CHAT ID:', chatId);
     console.log('THREAD ID:', threadId);
-    console.log('TEXT:', text);
+    console.log('TEXT RAW:', JSON.stringify(text));
 
-    // Ignorar todo fuera del tema permitido
+    // Ignora todo fuera del tema permitido
     if (!isAllowedTopic(ctx)) {
       return;
     }
 
     const normalizedText = text.trim().toLowerCase();
 
-    if (
-      normalizedText === '/biblioteca' ||
-      normalizedText === '/biblioteca@' + (ctx.botInfo?.username || '').toLowerCase() ||
-      normalizedText === '/publicar_biblioteca' ||
-      normalizedText === '/publicar_biblioteca@' + (ctx.botInfo?.username || '').toLowerCase() ||
-      normalizedText === '/start'
-    ) {
+    const isBiblioteca =
+      normalizedText.startsWith('/biblioteca');
+
+    const isPublicar =
+      normalizedText.startsWith('/publicar_biblioteca');
+
+    const isStart =
+      normalizedText.startsWith('/start');
+
+    if (isBiblioteca || isPublicar || isStart) {
+      console.log('COMANDO DETECTADO EN TEMA PERMITIDO');
       await sendLibraryButton(ctx);
     }
   } catch (error) {
