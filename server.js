@@ -111,15 +111,15 @@ function isGeneralInAllowedGroup(ctx) {
   return chatId === ALLOWED_CHAT_ID && (threadId === undefined || threadId === null);
 }
 
-async function sendMiniAppButton(ctx) {
+async function sendButtonTest(ctx) {
   await ctx.reply(
-    '🎬 Biblioteca oficial\n\nPulsa el botón para abrir la miniapp:',
+    '🎬 Biblioteca oficial\n\nPulsa el botón:',
     {
       reply_markup: {
         inline_keyboard: [[
           {
-            text: '🍿 Abrir biblioteca',
-            web_app: { url: WEBAPP_URL }
+            text: '🌐 Abrir biblioteca',
+            url: WEBAPP_URL
           }
         ]]
       }
@@ -139,19 +139,12 @@ bot.on('message', async (ctx) => {
     console.log('TEXT:', text);
     console.log('========================');
 
-    if (chatId !== ALLOWED_CHAT_ID) {
-      console.log('IGNORADO: chat no permitido');
+    if (!isGeneralInAllowedGroup(ctx)) {
+      console.log('IGNORADO: no está en general');
       return;
     }
 
-    if (threadId !== undefined && threadId !== null) {
-      console.log('IGNORADO: está en un tema, no en general');
-      return;
-    }
-
-    console.log('ACEPTADO: mensaje en general');
-
-    await ctx.reply(`✅ Estoy funcionando en GENERAL.\nTexto recibido: ${text}`);
+    console.log('ACEPTADO: general del grupo');
 
     const normalizedText = text.trim().toLowerCase();
 
@@ -160,8 +153,8 @@ bot.on('message', async (ctx) => {
       normalizedText.startsWith('/biblioteca') ||
       normalizedText.startsWith('/publicar_biblioteca')
     ) {
-      console.log('Enviando botón miniapp...');
-      await sendMiniAppButton(ctx);
+      console.log('Enviando botón URL...');
+      await sendButtonTest(ctx);
     }
   } catch (error) {
     console.error('Error en manejo de mensajes:', error.message);
