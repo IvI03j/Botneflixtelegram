@@ -3,52 +3,37 @@
     {
       "tmdb_id": 1198994,
       "media_type": "movie",
-      "telegram_link": "https://t.me/c/3043513364/5/26"
+      "source_chat_id": -1003043513364,
+      "source_message_id": 26,
+      "source_thread_id": 5
     },
     {
       "tmdb_id": 278,
       "media_type": "movie",
-      "telegram_link": "https://t.me/c/3043513364/5/28"
+      "source_chat_id": -1003043513364,
+      "source_message_id": 28,
+      "source_thread_id": 5
     },
     {
       "tmdb_id": 1197137,
       "media_type": "movie",
-      "telegram_link": "https://t.me/c/3043513364/5/41"
+      "source_chat_id": -1003043513364,
+      "source_message_id": 41,
+      "source_thread_id": 5
     },
     {
       "tmdb_id": 425274,
       "media_type": "movie",
-      "telegram_link": "https://t.me/c/3043513364/5/42"
+      "source_chat_id": -1003043513364,
+      "source_message_id": 42,
+      "source_thread_id": 5
     },
     {
       "tmdb_id": 1084242,
       "media_type": "movie",
-      "telegram_link": "https://t.me/c/3043513364/5/37"
-    },
-    {
-      "tmdb_id": 1396,
-      "media_type": "tv",
-      "telegram_link": "https://t.me/tu_canal/2"
-    },
-    {
-      "tmdb_id": 1396,
-      "media_type": "tv",
-      "telegram_link": "https://t.me/tu_canal/2"
-    },
-    {
-      "tmdb_id": 1396,
-      "media_type": "tv",
-      "telegram_link": "https://t.me/tu_canal/2"
-    },
-    {
-      "tmdb_id": 1396,
-      "media_type": "tv",
-      "telegram_link": "https://t.me/tu_canal/2"
-    },
-    {
-      "tmdb_id": 1396,
-      "media_type": "tv",
-      "telegram_link": "https://t.me/tu_canal/2"
+      "source_chat_id": -1003043513364,
+      "source_message_id": 37,
+      "source_thread_id": 5
     }
   ]
 }
