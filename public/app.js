@@ -82,6 +82,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (featuredMovie) openModal(featuredMovie);
     });
 
+    heroWatchBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (featuredMovie?.telegram_link) {
+        openTelegramTarget(featuredMovie.telegram_link);
+      }
+    });
+
+    modalWatchBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const link = modalWatchBtn.getAttribute('data-link');
+      if (link) {
+        openTelegramTarget(link);
+      }
+    });
+
+    modalTrailerBtn.addEventListener('click', (e) => {
+      // el tráiler sí puede abrirse normal
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeModal();
@@ -92,6 +111,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('Error cargando contenido:', error);
     container.innerHTML = '<p class="error">Error al cargar el contenido.</p>';
     if (resultsCount) resultsCount.textContent = '';
+  }
+
+  function openTelegramTarget(link) {
+    if (!link) return;
+
+    try {
+      if (tg && typeof tg.openTelegramLink === 'function' && link.includes('t.me')) {
+        tg.openTelegramLink(link);
+      } else {
+        window.open(link, '_blank');
+      }
+    } catch (error) {
+      console.error('Error abriendo enlace de Telegram:', error);
+      window.open(link, '_blank');
+    }
   }
 
   function setupFeaturedMovie(movies) {
@@ -120,8 +154,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     heroDescription.textContent =
       featuredMovie.description || 'Sin descripción disponible.';
-
-    heroWatchBtn.href = featuredMovie.telegram_link || '#';
   }
 
   function fillFilters(movies) {
@@ -248,7 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       .join('');
 
     modalDescription.textContent = movie.description || 'Sin descripción disponible.';
-    modalWatchBtn.href = movie.telegram_link || '#';
+    modalWatchBtn.setAttribute('data-link', movie.telegram_link || '#');
 
     if (movie.trailer_url) {
       modalTrailerBtn.href = movie.trailer_url;
