@@ -9,7 +9,6 @@ const WEBAPP_URL = process.env.WEBAPP_URL;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PORT = process.env.PORT || 3000;
 
-// GRUPO Y TEMA PERMITIDOS
 const ALLOWED_CHAT_ID = -1003043513364;
 const ALLOWED_THREAD_ID = 38;
 
@@ -47,14 +46,12 @@ async function fetchTMDBDetails(tmdbId, mediaType) {
 
 function getTrailerUrl(tmdbData) {
   const videos = tmdbData.videos?.results || [];
-
   const trailer = videos.find(video =>
     video.site === 'YouTube' &&
     video.type === 'Trailer'
   );
 
   if (!trailer) return null;
-
   return `https://www.youtube.com/watch?v=${trailer.key}`;
 }
 
@@ -106,52 +103,6 @@ app.get('/api/movies', async (req, res) => {
   }
 });
 
-app.get('/api/search-tmdb', async (req, res) => {
-  try {
-    const query = req.query.query;
-    const mediaType = req.query.media_type || 'movie';
-
-    if (!query) {
-      return res.status(400).json({ error: 'Falta el parámetro query' });
-    }
-
-    if (!['movie', 'tv'].includes(mediaType)) {
-      return res.status(400).json({ error: 'media_type debe ser movie o tv' });
-    }
-
-    const url = `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&language=es-ES&query=${encodeURIComponent(query)}`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Error buscando en TMDB: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    const results = (data.results || []).slice(0, 10).map(item => {
-      const title = mediaType === 'movie' ? item.title : item.name;
-      const releaseDate = mediaType === 'movie' ? item.release_date : item.first_air_date;
-      const year = releaseDate ? parseInt(releaseDate.slice(0, 4)) : null;
-
-      return {
-        id: item.id,
-        title: title || 'Sin título',
-        year,
-        poster: item.poster_path
-          ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-          : 'https://via.placeholder.com/300x450?text=Sin+imagen',
-        overview: item.overview || 'Sin descripción.',
-        type: mediaType
-      };
-    });
-
-    res.json(results);
-  } catch (error) {
-    console.error('Error en /api/search-tmdb:', error);
-    res.status(500).json({ error: 'Error buscando en TMDB' });
-  }
-});
-
 const bot = new Telegraf(BOT_TOKEN);
 
 function isAllowedTopic(ctx) {
@@ -165,7 +116,6 @@ async function sendLibraryButton(ctx) {
   await ctx.reply(
     '🎬 Biblioteca oficial del grupo\n\nPulsa el botón para abrir el catálogo:',
     {
-      message_thread_id: ALLOWED_THREAD_ID,
       reply_markup: {
         inline_keyboard: [[
           {
@@ -184,28 +134,31 @@ bot.on('message', async (ctx) => {
     const chatId = ctx.chat?.id;
     const threadId = ctx.message?.message_thread_id;
 
+    console.log('========================');
+    console.log('MENSAJE RECIBIDO');
     console.log('CHAT ID:', chatId);
     console.log('THREAD ID:', threadId);
     console.log('TEXT RAW:', JSON.stringify(text));
+    console.log('========================');
 
-    // Ignora todo fuera del tema permitido
     if (!isAllowedTopic(ctx)) {
+      console.log('IGNORADO: fuera del tema permitido');
       return;
     }
 
+    console.log('ACEPTADO: dentro del tema permitido');
+
+    // RESPUESTA DE PRUEBA
+    await ctx.reply(`✅ He recibido tu mensaje en el tema correcto.\nTexto: ${text || '[vacío]'}`);
+
     const normalizedText = text.trim().toLowerCase();
 
-    const isBiblioteca =
-      normalizedText.startsWith('/biblioteca');
-
-    const isPublicar =
-      normalizedText.startsWith('/publicar_biblioteca');
-
-    const isStart =
-      normalizedText.startsWith('/start');
-
-    if (isBiblioteca || isPublicar || isStart) {
-      console.log('COMANDO DETECTADO EN TEMA PERMITIDO');
+    if (
+      normalizedText.includes('/biblioteca') ||
+      normalizedText.includes('/publicar_biblioteca') ||
+      normalizedText.includes('/start')
+    ) {
+      console.log('COMANDO DETECTADO, enviando botón...');
       await sendLibraryButton(ctx);
     }
   } catch (error) {
