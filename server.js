@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 const ALLOWED_CHAT_ID = -1003043513364;
 const ALLOWED_THREAD_ID = 38;
 
-// Username real de tu bot SIN @
+// Username real del bot SIN @
 const BOT_USERNAME = 'TU_USERNAME_DEL_BOT';
 
 if (!BOT_TOKEN || !WEBAPP_URL || !TMDB_API_KEY) {
@@ -50,12 +50,14 @@ async function fetchTMDBDetails(tmdbId, mediaType) {
 
 function getTrailerUrl(tmdbData) {
   const videos = tmdbData.videos?.results || [];
+
   const trailer = videos.find(video =>
     video.site === 'YouTube' &&
     video.type === 'Trailer'
   );
 
   if (!trailer) return null;
+
   return `https://www.youtube.com/watch?v=${trailer.key}`;
 }
 
@@ -80,9 +82,7 @@ function mapTMDBToCatalog(item, tmdbData) {
     description: tmdbData.overview || 'Sin descripción disponible.',
     rating: tmdbData.vote_average || null,
     trailer_url: getTrailerUrl(tmdbData),
-    source_chat_id: item.source_chat_id,
-    source_message_id: item.source_message_id,
-    source_thread_id: item.source_thread_id || null
+    telegram_link: item.telegram_link
   };
 }
 
@@ -109,39 +109,49 @@ app.get('/api/movies', async (req, res) => {
   }
 });
 
-app.post('/api/send-to-topic', async (req, res) => {
+app.get('/api/search-tmdb', async (req, res) => {
   try {
-    const { tmdb_id } = req.body;
+    const query = req.query.query;
+    const mediaType = req.query.media_type || 'movie';
 
-    if (!tmdb_id) {
-      return res.status(400).json({ error: 'Falta tmdb_id' });
+    if (!query) {
+      return res.status(400).json({ error: 'Falta el parámetro query' });
     }
 
-    const items = loadItems();
-    const item = items.find(i => Number(i.tmdb_id) === Number(tmdb_id));
-
-    if (!item) {
-      return res.status(404).json({ error: 'Contenido no encontrado en movies.json' });
+    if (!['movie', 'tv'].includes(mediaType)) {
+      return res.status(400).json({ error: 'media_type debe ser movie o tv' });
     }
 
-    await bot.telegram.copyMessage(
-      ALLOWED_CHAT_ID,
-      item.source_chat_id,
-      item.source_message_id,
-      {
-        message_thread_id: ALLOWED_THREAD_ID
-      }
-    );
+    const url = `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&language=es-ES&query=${encodeURIComponent(query)}`;
+    const response = await fetch(url);
 
-    return res.json({
-      success: true,
-      message: 'Contenido enviado al tema correctamente'
+    if (!response.ok) {
+      throw new Error(`Error buscando en TMDB: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const results = (data.results || []).slice(0, 10).map(item => {
+      const title = mediaType === 'movie' ? item.title : item.name;
+      const releaseDate = mediaType === 'movie' ? item.release_date : item.first_air_date;
+      const year = releaseDate ? parseInt(releaseDate.slice(0, 4)) : null;
+
+      return {
+        id: item.id,
+        title: title || 'Sin título',
+        year,
+        poster: item.poster_path
+          ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+          : 'https://via.placeholder.com/300x450?text=Sin+imagen',
+        overview: item.overview || 'Sin descripción.',
+        type: mediaType
+      };
     });
+
+    res.json(results);
   } catch (error) {
-    console.error('Error en /api/send-to-topic:', error);
-    return res.status(500).json({
-      error: 'No se pudo enviar el contenido al tema'
-    });
+    console.error('Error en /api/search-tmdb:', error);
+    res.status(500).json({ error: 'Error buscando en TMDB' });
   }
 });
 
@@ -169,19 +179,11 @@ async function sendMiniAppButtonPrivate(ctx) {
   );
 }
 
-async function sendBotLinkInTopic(ctx) {
+async function sendAccessMessageInTopic(ctx) {
   await ctx.reply(
-    '🎬 Biblioteca oficial del grupo\n\nPara abrir la miniapp, entra al bot privado desde este botón:',
-    {
-      reply_markup: {
-        inline_keyboard: [[
-          {
-            text: '🤖 Abrir bot biblioteca',
-            url: `https://t.me/${BOT_USERNAME}?start=biblioteca`
-          }
-        ]]
-      }
-    }
+    `🎬 Biblioteca oficial\n\n` +
+    `🤖 Abrir bot:\nhttps://t.me/${BOT_USERNAME}?start=biblioteca\n\n` +
+    `🌐 Abrir web:\n${WEBAPP_URL}`
   );
 }
 
@@ -190,7 +192,7 @@ bot.on('message', async (ctx) => {
     const text = (ctx.message?.text || '').trim().toLowerCase();
     const chatType = ctx.chat?.type;
 
-    // CHAT PRIVADO -> MINIAPP REAL
+    // Chat privado -> miniapp real
     if (chatType === 'private') {
       if (
         text.startsWith('/start') ||
@@ -201,14 +203,14 @@ bot.on('message', async (ctx) => {
       return;
     }
 
-    // GRUPO/TEMA -> SOLO ENLACE AL BOT
+    // Tema permitido del grupo -> mensaje con accesos
     if (isAllowedTopic(ctx)) {
       if (
         text.startsWith('/biblioteca') ||
         text.startsWith('/publicar_biblioteca') ||
         text.startsWith('/start')
       ) {
-        await sendBotLinkInTopic(ctx);
+        await sendAccessMessageInTopic(ctx);
       }
     }
   } catch (error) {
