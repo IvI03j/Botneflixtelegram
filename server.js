@@ -150,6 +150,7 @@ app.get('/api/search-tmdb', async (req, res) => {
 
 const bot = new Telegraf(BOT_TOKEN);
 
+// COMANDO START NORMAL
 bot.start((ctx) => {
   ctx.reply(
     '🎬 Bienvenido a tu catálogo.\nPulsa el botón para abrirlo.',
@@ -164,6 +165,39 @@ bot.start((ctx) => {
       }
     }
   );
+});
+
+// DETECTOR TEMPORAL DE CHAT ID Y THREAD ID
+bot.on('message', async (ctx) => {
+  const chatId = ctx.chat?.id;
+  const threadId = ctx.message?.message_thread_id || 'sin tema';
+  const chatType = ctx.chat?.type || 'desconocido';
+  const chatTitle = ctx.chat?.title || ctx.chat?.username || 'sin título';
+  const text = ctx.message?.text || '[no es texto]';
+
+  console.log('==============================');
+  console.log('MENSAJE RECIBIDO');
+  console.log('CHAT ID:', chatId);
+  console.log('THREAD ID:', threadId);
+  console.log('CHAT TYPE:', chatType);
+  console.log('CHAT TITLE:', chatTitle);
+  console.log('TEXT:', text);
+  console.log('==============================');
+
+  try {
+    await ctx.reply(
+      `📌 Datos detectados:\n\n` +
+      `Chat ID: ${chatId}\n` +
+      `Thread ID: ${threadId}\n` +
+      `Tipo de chat: ${chatType}\n` +
+      `Título: ${chatTitle}`,
+      {
+        message_thread_id: ctx.message?.message_thread_id
+      }
+    );
+  } catch (error) {
+    console.error('Error respondiendo con IDs:', error.message);
+  }
 });
 
 app.listen(PORT, () => {
