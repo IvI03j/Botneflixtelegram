@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const detailModal = document.getElementById('detailModal');
   const closeModalBtn = document.getElementById('closeModalBtn');
+  const backModalBtn = document.getElementById('backModalBtn');
 
   const modalPoster = document.getElementById('modalPoster');
   const modalTitle = document.getElementById('modalTitle');
@@ -75,6 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     closeModalBtn.addEventListener('click', closeModal);
+    backModalBtn.addEventListener('click', closeModal);
 
     heroInfoBtn.addEventListener('click', () => {
       if (featuredMovie) openModal(featuredMovie);
