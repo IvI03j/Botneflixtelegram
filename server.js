@@ -150,53 +150,38 @@ app.get('/api/search-tmdb', async (req, res) => {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// COMANDO START NORMAL
+// COMANDO START TEMPORAL SIN BOTÓN
 bot.start((ctx) => {
-  ctx.reply(
-    '🎬 Bienvenido a tu catálogo.\nPulsa el botón para abrirlo.',
-    {
-      reply_markup: {
-        inline_keyboard: [[
-          {
-            text: '🍿 Abrir Catálogo',
-            web_app: { url: WEBAPP_URL }
-          }
-        ]]
-      }
-    }
-  );
+  ctx.reply('🤖 Bot en modo detección.\nEscribe en el tema que quieras usar y revisaré el chat_id y el thread_id.');
 });
 
-// DETECTOR TEMPORAL DE CHAT ID Y THREAD ID
+// DETECTOR TEMPORAL
 bot.on('message', async (ctx) => {
-  const chatId = ctx.chat?.id;
-  const threadId = ctx.message?.message_thread_id || 'sin tema';
-  const chatType = ctx.chat?.type || 'desconocido';
-  const chatTitle = ctx.chat?.title || ctx.chat?.username || 'sin título';
-  const text = ctx.message?.text || '[no es texto]';
-
-  console.log('==============================');
-  console.log('MENSAJE RECIBIDO');
-  console.log('CHAT ID:', chatId);
-  console.log('THREAD ID:', threadId);
-  console.log('CHAT TYPE:', chatType);
-  console.log('CHAT TITLE:', chatTitle);
-  console.log('TEXT:', text);
-  console.log('==============================');
-
   try {
+    const chatId = ctx.chat?.id;
+    const threadId = ctx.message?.message_thread_id || 'sin tema';
+    const chatType = ctx.chat?.type || 'desconocido';
+    const chatTitle = ctx.chat?.title || ctx.chat?.username || 'sin título';
+    const text = ctx.message?.text || '[no es texto]';
+
+    console.log('==============================');
+    console.log('MENSAJE RECIBIDO');
+    console.log('CHAT ID:', chatId);
+    console.log('THREAD ID:', threadId);
+    console.log('CHAT TYPE:', chatType);
+    console.log('CHAT TITLE:', chatTitle);
+    console.log('TEXT:', text);
+    console.log('==============================');
+
     await ctx.reply(
       `📌 Datos detectados:\n\n` +
       `Chat ID: ${chatId}\n` +
       `Thread ID: ${threadId}\n` +
       `Tipo de chat: ${chatType}\n` +
-      `Título: ${chatTitle}`,
-      {
-        message_thread_id: ctx.message?.message_thread_id
-      }
+      `Título: ${chatTitle}`
     );
   } catch (error) {
-    console.error('Error respondiendo con IDs:', error.message);
+    console.error('Error en detector de IDs:', error.message);
   }
 });
 
@@ -211,3 +196,6 @@ bot.launch()
   .catch((error) => {
     console.error('Error iniciando el bot:', error.message);
   });
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
