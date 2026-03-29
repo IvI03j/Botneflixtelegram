@@ -9,6 +9,7 @@ const WEBAPP_URL = process.env.WEBAPP_URL;
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PORT = process.env.PORT || 3000;
 
+// Grupo y tema donde el bot puede actuar
 const ALLOWED_CHAT_ID = -1003043513364;
 const ALLOWED_THREAD_ID = 38;
 
@@ -46,12 +47,14 @@ async function fetchTMDBDetails(tmdbId, mediaType) {
 
 function getTrailerUrl(tmdbData) {
   const videos = tmdbData.videos?.results || [];
+
   const trailer = videos.find(video =>
     video.site === 'YouTube' &&
     video.type === 'Trailer'
   );
 
   if (!trailer) return null;
+
   return `https://www.youtube.com/watch?v=${trailer.key}`;
 }
 
@@ -76,7 +79,9 @@ function mapTMDBToCatalog(item, tmdbData) {
     description: tmdbData.overview || 'Sin descripción disponible.',
     rating: tmdbData.vote_average || null,
     trailer_url: getTrailerUrl(tmdbData),
-    telegram_link: item.telegram_link
+    source_chat_id: item.source_chat_id,
+    source_message_id: item.source_message_id,
+    source_thread_id: item.source_thread_id || null
   };
 }
 
@@ -146,6 +151,43 @@ app.get('/api/search-tmdb', async (req, res) => {
   } catch (error) {
     console.error('Error en /api/search-tmdb:', error);
     res.status(500).json({ error: 'Error buscando en TMDB' });
+  }
+});
+
+// NUEVO ENDPOINT: copiar película al tema del bot
+app.post('/api/send-to-topic', async (req, res) => {
+  try {
+    const { tmdb_id } = req.body;
+
+    if (!tmdb_id) {
+      return res.status(400).json({ error: 'Falta tmdb_id' });
+    }
+
+    const items = loadItems();
+    const item = items.find(i => Number(i.tmdb_id) === Number(tmdb_id));
+
+    if (!item) {
+      return res.status(404).json({ error: 'Contenido no encontrado en movies.json' });
+    }
+
+    await bot.telegram.copyMessage(
+      ALLOWED_CHAT_ID,
+      item.source_chat_id,
+      item.source_message_id,
+      {
+        message_thread_id: ALLOWED_THREAD_ID
+      }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Contenido enviado al tema correctamente'
+    });
+  } catch (error) {
+    console.error('Error en /api/send-to-topic:', error);
+    return res.status(500).json({
+      error: 'No se pudo enviar el contenido al tema'
+    });
   }
 });
 
