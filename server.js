@@ -104,7 +104,6 @@ function isAllowedThread(ctx) {
   return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
 }
 
-// Usa bot.telegram.sendMessage en vez de ctx.reply para evitar problemas con temas
 async function sendBibliotecaButton() {
   await bot.telegram.sendMessage(
     ALLOWED_CHAT_ID,
@@ -114,8 +113,8 @@ async function sendBibliotecaButton() {
       reply_markup: {
         inline_keyboard: [[
           {
-            text: '🌐 Abrir biblioteca',
-            url: WEBAPP_URL
+            text: '🎬 Abrir biblioteca',
+            web_app: { url: WEBAPP_URL }  // abre como WebApp dentro de Telegram
           }
         ]]
       }
@@ -152,7 +151,7 @@ bot.on('message', async (ctx) => {
       normalizedText === 'pelis' ||
       normalizedText === 'ver'
     ) {
-      console.log('Enviando botón URL...');
+      console.log('Enviando botón WebApp...');
       await sendBibliotecaButton();
     }
   } catch (error) {
