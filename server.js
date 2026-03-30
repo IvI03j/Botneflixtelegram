@@ -1,24 +1,22 @@
 const express = require('express');
 const { Telegraf } = require('telegraf');
 const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL;
-const TMDB_API_KEY = process.env.TMDB_API_KEY;
+const INDEXWEBOFICA_URL = process.env.INDEXWEBOFICA_URL || 'https://indexwebofica-pzwchg.fly.dev';
 const PORT = process.env.PORT || 3000;
 
 const ALLOWED_CHAT_ID = -1003043513364;
 const ALLOWED_THREAD_ID = 38;
 
-if (!BOT_TOKEN || !WEBAPP_URL || !TMDB_API_KEY) {
-  console.error('Faltan BOT_TOKEN, WEBAPP_URL o TMDB_API_KEY en las variables de entorno');
+if (!BOT_TOKEN || !WEBAPP_URL) {
+  console.error('Faltan BOT_TOKEN o WEBAPP_URL en las variables de entorno');
   process.exit(1);
 }
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -27,71 +25,33 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-function loadItems() {
-  const filePath = path.join(__dirname, 'data', 'movies.json');
-  const rawData = fs.readFileSync(filePath, 'utf8');
-  return JSON.parse(rawData).items || [];
-}
-
-async function fetchTMDBDetails(tmdbId, mediaType) {
-  const url = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_API_KEY}&language=es-ES&append_to_response=videos`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Error TMDB para ${mediaType}/${tmdbId}: ${response.status}`);
-  }
-  return await response.json();
-}
-
-function getTrailerUrl(tmdbData) {
-  const videos = tmdbData.videos?.results || [];
-  const trailer = videos.find(video =>
-    video.site === 'YouTube' && video.type === 'Trailer'
-  );
-  if (!trailer) return null;
-  return `https://www.youtube.com/watch?v=${trailer.key}`;
-}
-
-function mapTMDBToCatalog(item, tmdbData) {
-  const isMovie = item.media_type === 'movie';
-  const title = isMovie ? tmdbData.title : tmdbData.name;
-  const releaseDate = isMovie ? tmdbData.release_date : tmdbData.first_air_date;
-  const year = releaseDate ? parseInt(releaseDate.slice(0, 4)) : null;
-  return {
-    id: tmdbData.id,
-    title: title || 'Sin título',
-    year,
-    genre: (tmdbData.genres || []).map(g => g.name),
-    type: isMovie ? 'pelicula' : 'serie',
-    poster: tmdbData.poster_path
-      ? `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`
-      : 'https://via.placeholder.com/300x450?text=Sin+imagen',
-    backdrop: tmdbData.backdrop_path
-      ? `https://image.tmdb.org/t/p/original${tmdbData.backdrop_path}`
-      : null,
-    description: tmdbData.overview || 'Sin descripción disponible.',
-    rating: tmdbData.vote_average || null,
-    trailer_url: getTrailerUrl(tmdbData),
-    telegram_link: item.telegram_link
-  };
-}
-
+// Proxy del catálogo — el frontend llama a /api/movies y esto lo obtiene de indexwebofica
 app.get('/api/movies', async (req, res) => {
   try {
-    const items = loadItems();
-    const results = await Promise.all(
-      items.map(async (item) => {
-        try {
-          const tmdbData = await fetchTMDBDetails(item.tmdb_id, item.media_type);
-          return mapTMDBToCatalog(item, tmdbData);
-        } catch (error) {
-          console.error(`Error cargando item ${item.tmdb_id}:`, error.message);
-          return null;
-        }
-      })
-    );
-    res.json(results.filter(Boolean));
+    const response = await fetch(`${INDEXWEBOFICA_URL}/api/catalog`);
+    if (!response.ok) {
+      throw new Error(`Error ${response.status} de indexwebofica`);
+    }
+    const data = await response.json();
+
+    // Adaptar formato al que espera el frontend
+    const adapted = data.map(item => ({
+      id: item.tmdb_id,
+      title: item.title || 'Sin título',
+      year: item.year ? parseInt(item.year) : null,
+      genre: item.genres || [],
+      type: item.media_type === 'movie' ? 'pelicula' : 'serie',
+      poster: item.poster || 'https://via.placeholder.com/300x450?text=Sin+imagen',
+      backdrop: null,
+      description: item.overview || 'Sin descripción disponible.',
+      rating: item.rating || null,
+      trailer_url: null,
+      telegram_link: item.telegram_link,
+    }));
+
+    res.json(adapted);
   } catch (error) {
-    console.error('Error en /api/movies:', error);
+    console.error('Error obteniendo catálogo:', error.message);
     res.status(500).json({ error: 'No se pudieron cargar las películas' });
   }
 });
@@ -113,8 +73,8 @@ async function sendBibliotecaButton() {
       reply_markup: {
         inline_keyboard: [[
           {
-            text: '🎬 Abrir biblioteca',
-            web_app: { url: WEBAPP_URL }  // abre como WebApp dentro de Telegram
+            text: '🌐 Abrir biblioteca',
+            url: WEBAPP_URL
           }
         ]]
       }
@@ -139,19 +99,15 @@ bot.on('message', async (ctx) => {
       return;
     }
 
-    console.log('ACEPTADO: tema correcto');
-
     const normalizedText = text.trim().toLowerCase();
 
     if (
       normalizedText.startsWith('/start') ||
       normalizedText.startsWith('/biblioteca') ||
-      normalizedText.startsWith('/publicar_biblioteca') ||
       normalizedText === 'biblioteca' ||
       normalizedText === 'pelis' ||
       normalizedText === 'ver'
     ) {
-      console.log('Enviando botón WebApp...');
       await sendBibliotecaButton();
     }
   } catch (error) {
