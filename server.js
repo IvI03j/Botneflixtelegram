@@ -10,6 +10,7 @@ const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PORT = process.env.PORT || 3000;
 
 const ALLOWED_CHAT_ID = -1003043513364;
+const ALLOWED_THREAD_ID = 38;
 
 if (!BOT_TOKEN || !WEBAPP_URL || !TMDB_API_KEY) {
   console.error('Faltan BOT_TOKEN, WEBAPP_URL o TMDB_API_KEY en las variables de entorno');
@@ -35,21 +36,17 @@ function loadItems() {
 async function fetchTMDBDetails(tmdbId, mediaType) {
   const url = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_API_KEY}&language=es-ES&append_to_response=videos`;
   const response = await fetch(url);
-
   if (!response.ok) {
     throw new Error(`Error TMDB para ${mediaType}/${tmdbId}: ${response.status}`);
   }
-
   return await response.json();
 }
 
 function getTrailerUrl(tmdbData) {
   const videos = tmdbData.videos?.results || [];
   const trailer = videos.find(video =>
-    video.site === 'YouTube' &&
-    video.type === 'Trailer'
+    video.site === 'YouTube' && video.type === 'Trailer'
   );
-
   if (!trailer) return null;
   return `https://www.youtube.com/watch?v=${trailer.key}`;
 }
@@ -59,7 +56,6 @@ function mapTMDBToCatalog(item, tmdbData) {
   const title = isMovie ? tmdbData.title : tmdbData.name;
   const releaseDate = isMovie ? tmdbData.release_date : tmdbData.first_air_date;
   const year = releaseDate ? parseInt(releaseDate.slice(0, 4)) : null;
-
   return {
     id: tmdbData.id,
     title: title || 'Sin título',
@@ -82,7 +78,6 @@ function mapTMDBToCatalog(item, tmdbData) {
 app.get('/api/movies', async (req, res) => {
   try {
     const items = loadItems();
-
     const results = await Promise.all(
       items.map(async (item) => {
         try {
@@ -94,7 +89,6 @@ app.get('/api/movies', async (req, res) => {
         }
       })
     );
-
     res.json(results.filter(Boolean));
   } catch (error) {
     console.error('Error en /api/movies:', error);
@@ -104,17 +98,19 @@ app.get('/api/movies', async (req, res) => {
 
 const bot = new Telegraf(BOT_TOKEN);
 
-function isGeneralInAllowedGroup(ctx) {
+function isAllowedThread(ctx) {
   const chatId = ctx.chat?.id;
   const threadId = ctx.message?.message_thread_id;
-
-  return chatId === ALLOWED_CHAT_ID && (threadId === undefined || threadId === null);
+  return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
 }
 
-async function sendButtonTest(ctx) {
-  await ctx.reply(
-    '🎬 Biblioteca oficial\n\nPulsa el botón:',
+// Usa bot.telegram.sendMessage en vez de ctx.reply para evitar problemas con temas
+async function sendBibliotecaButton() {
+  await bot.telegram.sendMessage(
+    ALLOWED_CHAT_ID,
+    '🎬 Biblioteca oficial\n\nPulsa el botón para abrir:',
     {
+      message_thread_id: ALLOWED_THREAD_ID,
       reply_markup: {
         inline_keyboard: [[
           {
@@ -139,22 +135,25 @@ bot.on('message', async (ctx) => {
     console.log('TEXT:', text);
     console.log('========================');
 
-    if (!isGeneralInAllowedGroup(ctx)) {
-      console.log('IGNORADO: no está en general');
+    if (!isAllowedThread(ctx)) {
+      console.log('IGNORADO: no es el tema permitido');
       return;
     }
 
-    console.log('ACEPTADO: general del grupo');
+    console.log('ACEPTADO: tema correcto');
 
     const normalizedText = text.trim().toLowerCase();
 
     if (
       normalizedText.startsWith('/start') ||
       normalizedText.startsWith('/biblioteca') ||
-      normalizedText.startsWith('/publicar_biblioteca')
+      normalizedText.startsWith('/publicar_biblioteca') ||
+      normalizedText === 'biblioteca' ||
+      normalizedText === 'pelis' ||
+      normalizedText === 'ver'
     ) {
       console.log('Enviando botón URL...');
-      await sendButtonTest(ctx);
+      await sendBibliotecaButton();
     }
   } catch (error) {
     console.error('Error en manejo de mensajes:', error.message);
@@ -166,12 +165,8 @@ app.listen(PORT, () => {
 });
 
 bot.launch()
-  .then(() => {
-    console.log('Bot iniciado');
-  })
-  .catch((error) => {
-    console.error('Error iniciando el bot:', error.message);
-  });
+  .then(() => console.log('Bot iniciado'))
+  .catch((error) => console.error('Error iniciando el bot:', error.message));
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
