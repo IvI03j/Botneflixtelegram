@@ -28,7 +28,7 @@ app.get('/', (req, res) => {
 // Proxy del catálogo — el frontend llama a /api/movies y esto lo obtiene de indexwebofica
 app.get('/api/movies', async (req, res) => {
   try {
-    const response = await fetch(`${INDEXWEBOFICA_URL}/api/catalog`);
+    const response = await fetch(`${INDEXWEBOFICA_URL}/_api/catalog`);
     if (!response.ok) {
       throw new Error(`Error ${response.status} de indexwebofica`);
     }
