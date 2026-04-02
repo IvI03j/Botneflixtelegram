@@ -17,6 +17,7 @@ if (tg) {
 let allMovies = [];
 let featuredMovie = null;
 let currentModalMovie = null;
+let currentTelegramUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('movies');
@@ -49,7 +50,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   container.innerHTML = '<p class="loading">Cargando contenido...</p>';
 
+  async function registerTelegramUser() {
+    try {
+      const user = tg?.initDataUnsafe?.user;
+
+      if (!user?.id) {
+        console.warn('No se pudo obtener el usuario de Telegram');
+        return null;
+      }
+
+      const res = await fetch('/api/auth/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: user.id,
+          username: user.username || null,
+          first_name: user.first_name || null
+        })
+      });
+
+      const data = await res.json();
+
+      if (!data.ok) {
+        console.error('Error registrando usuario:', data.error);
+        return null;
+      }
+
+      currentTelegramUser = data.user;
+      console.log('Usuario registrado:', currentTelegramUser);
+      return currentTelegramUser;
+    } catch (error) {
+      console.error('Error registrando usuario Telegram:', error);
+      return null;
+    }
+  }
+
   try {
+    await registerTelegramUser();
+
     const response = await fetch('/api/movies');
 
     if (!response.ok) {
