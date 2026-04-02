@@ -17,6 +17,8 @@ if (!BOT_TOKEN || !WEBAPP_URL) {
 }
 
 const app = express();
+const bot = new Telegraf(BOT_TOKEN);
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -25,12 +27,15 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Catálogo remoto
 app.get('/api/movies', async (req, res) => {
   try {
     const response = await fetch(`${INDEXWEBOFICA_URL}/_api/catalog`);
+
     if (!response.ok) {
       throw new Error(`Error ${response.status} de indexwebofica`);
     }
+
     const data = await response.json();
 
     const adapted = data.map(item => ({
@@ -40,17 +45,17 @@ app.get('/api/movies', async (req, res) => {
       genre: item.genres || [],
       type: item.media_type === 'movie' ? 'pelicula' : 'serie',
       poster: item.poster || 'https://via.placeholder.com/300x450?text=Sin+imagen',
-      backdrop: null,
+      backdrop: item.backdrop || null,
       description: item.overview || 'Sin descripción disponible.',
       rating: item.rating || null,
-      trailer_url: null,
-      telegram_link: item.telegram_link,
+      trailer_url: item.trailer_url || null,
+      telegram_link: item.telegram_link || null,
     }));
 
     res.json(adapted);
   } catch (error) {
     console.error('Error obteniendo catálogo:', error.message);
-    res.status(500).json({ error: 'No se pudieron cargar las películas' });
+    res.status(500).json({ ok: false, error: 'No se pudieron cargar las películas' });
   }
 });
 
@@ -59,39 +64,85 @@ function parseTelegramLink(link) {
     const url = new URL(link);
     const parts = url.pathname.split('/').filter(Boolean);
 
-    if (parts.length === 2 && parts[0] !== 'c') {
-      const username = parts[0];
-      const messageId = parseInt(parts[1], 10);
-
-      if (!messageId) return null;
-
-      return {
-        type: 'public',
-        chat_id: `@${username}`,
-        message_id: messageId
-      };
-    }
-
-    if (parts.length === 3 && parts[0] === 'c') {
+    // Ejemplo: https://t.me/c/1234567890/55
+    if (parts[0] === 'c' && parts.length >= 3) {
       const internalId = parts[1];
       const messageId = parseInt(parts[2], 10);
 
-      if (!messageId) return null;
+      if (!internalId || !messageId) return null;
 
       return {
-        type: 'private',
         chat_id: Number(`-100${internalId}`),
         message_id: messageId
       };
     }
 
+    // Ejemplo: https://t.me/canalpublico/55
+    if (parts.length >= 2) {
+      const username = parts[0];
+      const messageId = parseInt(parts[1], 10);
+
+      if (!username || !messageId) return null;
+
+      return {
+        chat_id: `@${username}`,
+        message_id: messageId
+      };
+    }
+
     return null;
-  } catch (error) {
+  } catch (err) {
     return null;
   }
 }
 
-const bot = new Telegraf(BOT_TOKEN);
+app.post('/api/send-movie', async (req, res) => {
+  try {
+    const { userId, telegram_link } = req.body;
+
+    console.log('REQ BODY /api/send-movie:', req.body);
+
+    if (!userId || !telegram_link) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Faltan userId o telegram_link'
+      });
+    }
+
+    const parsed = parseTelegramLink(telegram_link);
+
+    if (!parsed) {
+      return res.status(400).json({
+        ok: false,
+        error: 'No se pudo interpretar telegram_link'
+      });
+    }
+
+    console.log('LINK PARSEADO:', parsed);
+
+    await bot.telegram.copyMessage(
+      userId,
+      parsed.chat_id,
+      parsed.message_id,
+      {
+        protect_content: true
+      }
+    );
+
+    return res.json({
+      ok: true,
+      message: 'Película enviada al chat del bot'
+    });
+  } catch (error) {
+    console.error('ERROR copyMessage:', error.response?.description || error.message);
+
+    return res.status(500).json({
+      ok: false,
+      error: 'No se pudo enviar la película',
+      detail: error.response?.description || error.message
+    });
+  }
+});
 
 function isAllowedThread(ctx) {
   const chatId = ctx.chat?.id;
@@ -116,6 +167,10 @@ async function sendBibliotecaButton() {
     }
   );
 }
+
+bot.start(async (ctx) => {
+  await ctx.reply('Bienvenido. Abre la biblioteca y elige una película.');
+});
 
 bot.on('message', async (ctx) => {
   try {
@@ -147,42 +202,6 @@ bot.on('message', async (ctx) => {
     }
   } catch (error) {
     console.error('Error en manejo de mensajes:', error.message);
-  }
-});
-
-app.post('/api/send-movie', async (req, res) => {
-  try {
-    const { userId, telegram_link } = req.body;
-
-    if (!userId || !telegram_link) {
-      return res.status(400).json({ error: 'Faltan userId o telegram_link' });
-    }
-
-    const parsed = parseTelegramLink(telegram_link);
-
-    if (!parsed) {
-      return res.status(400).json({ error: 'telegram_link inválido' });
-    }
-
-    await bot.telegram.copyMessage(
-      userId,
-      parsed.chat_id,
-      parsed.message_id,
-      {
-        protect_content: true
-      }
-    );
-
-    return res.json({
-      ok: true,
-      message: 'Película enviada al chat del bot'
-    });
-  } catch (error) {
-    console.error('Error enviando película:', error.response?.description || error.message);
-    return res.status(500).json({
-      error: 'No se pudo enviar la película',
-      detail: error.response?.description || error.message
-    });
   }
 });
 
