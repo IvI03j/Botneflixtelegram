@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const typeFilter = document.getElementById('typeFilter');
   const clearFilters = document.getElementById('clearFilters');
   const resultsCount = document.getElementById('resultsCount');
+  const balanceValue = document.getElementById('balanceValue');
 
   const heroSection = document.getElementById('heroSection');
   const heroTitle = document.getElementById('heroTitle');
@@ -77,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       currentTelegramUser = data.user;
+      updateBalanceUI(currentTelegramUser.coins || 0);
       console.log('Usuario registrado:', currentTelegramUser);
       return currentTelegramUser;
     } catch (error) {
@@ -85,8 +87,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  async function fetchBalance() {
+    try {
+      const userId = tg?.initDataUnsafe?.user?.id;
+      if (!userId) return;
+
+      const res = await fetch(`/api/balance/${userId}`);
+      const data = await res.json();
+
+      if (data.ok) {
+        updateBalanceUI(data.balance);
+        if (currentTelegramUser) {
+          currentTelegramUser.coins = data.balance;
+        }
+      }
+    } catch (error) {
+      console.error('Error obteniendo saldo:', error);
+    }
+  }
+
+  function updateBalanceUI(balance) {
+    if (balanceValue) {
+      balanceValue.textContent = balance ?? 0;
+    }
+  }
+
   try {
     await registerTelegramUser();
+    await fetchBalance();
 
     const response = await fetch('/api/movies');
 
@@ -171,7 +199,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = await res.json();
 
       if (data.ok) {
-        alert('✅ Película enviada al chat del bot');
+        updateBalanceUI(data.balance);
+        if (currentTelegramUser) {
+          currentTelegramUser.coins = data.balance;
+        }
+        alert(`✅ Película enviada al chat del bot\n💰 Saldo restante: ${data.balance}`);
       } else {
         alert('❌ ' + (data.detail || data.error || 'No se pudo enviar'));
       }
