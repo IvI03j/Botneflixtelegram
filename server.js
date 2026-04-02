@@ -15,6 +15,7 @@ const PORT = process.env.PORT || 8080;
 
 const ALLOWED_CHAT_ID = -1003043513364;
 const ALLOWED_THREAD_ID = 38;
+const MOVIE_PRICE = 3;
 
 if (!BOT_TOKEN || !WEBAPP_URL) {
   console.error('Faltan BOT_TOKEN o WEBAPP_URL en las variables de entorno');
@@ -34,7 +35,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Healthcheck para Fly.io
 app.get('/health', (req, res) => {
   res.status(200).json({ ok: true, status: 'running' });
 });
@@ -301,7 +301,7 @@ async function tryCopyMessage(toUserId, fromChatId, messageId) {
 }
 
 // =========================
-// ENVIAR PELÍCULA
+// ENVIAR PELÍCULA COBRANDO MONEDAS
 // =========================
 app.post('/api/send-movie', async (req, res) => {
   try {
@@ -319,6 +319,38 @@ app.post('/api/send-movie', async (req, res) => {
       });
     }
 
+    // 1. Buscar usuario
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('telegram_id', userId)
+      .maybeSingle();
+
+    if (userError) {
+      console.error('Error buscando usuario para cobro:', userError.message);
+      return res.status(500).json({
+        ok: false,
+        error: 'Error buscando usuario'
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        ok: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    // 2. Verificar saldo
+    if (user.coins < MOVIE_PRICE) {
+      return res.status(400).json({
+        ok: false,
+        error: `No tienes suficientes monedas. Esta película cuesta ${MOVIE_PRICE} monedas.`,
+        balance: user.coins,
+        price: MOVIE_PRICE
+      });
+    }
+
     const parsed = parseTelegramLink(telegram_link);
 
     if (!parsed) {
@@ -330,6 +362,43 @@ app.post('/api/send-movie', async (req, res) => {
 
     console.log('LINK PARSEADO:', parsed);
 
+    // 3. Descontar monedas
+    const newBalance = user.coins - MOVIE_PRICE;
+
+    const { error: updateCoinsError } = await supabase
+      .from('users')
+      .update({
+        coins: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('telegram_id', userId);
+
+    if (updateCoinsError) {
+      console.error('Error descontando monedas:', updateCoinsError.message);
+      return res.status(500).json({
+        ok: false,
+        error: 'No se pudieron descontar las monedas'
+      });
+    }
+
+    // 4. Registrar transacción
+    const { error: transactionError } = await supabase
+      .from('transactions')
+      .insert([
+        {
+          telegram_id: userId,
+          type: 'spend_movie',
+          amount: -MOVIE_PRICE,
+          description: 'Compra de película en Botneflixtelegram',
+          source: 'bot_catalog'
+        }
+      ]);
+
+    if (transactionError) {
+      console.error('Error guardando transacción:', transactionError.message);
+    }
+
+    // 5. Enviar primero el texto relacionado
     let sentText = false;
 
     sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
@@ -338,12 +407,32 @@ app.post('/api/send-movie', async (req, res) => {
       sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
     }
 
+    // 6. Luego enviar el video principal
     const sentVideo = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id);
 
     if (!sentVideo) {
+      // Si falla el envío, devolver monedas
+      await supabase
+        .from('users')
+        .update({
+          coins: user.coins,
+          updated_at: new Date().toISOString()
+        })
+        .eq('telegram_id', userId);
+
+      await supabase.from('transactions').insert([
+        {
+          telegram_id: userId,
+          type: 'refund_movie',
+          amount: MOVIE_PRICE,
+          description: 'Reembolso por fallo al enviar película',
+          source: 'bot_catalog'
+        }
+      ]);
+
       return res.status(500).json({
         ok: false,
-        error: 'No se pudo enviar el video principal'
+        error: 'No se pudo enviar el video principal. Se te devolvieron las monedas.'
       });
     }
 
@@ -351,7 +440,9 @@ app.post('/api/send-movie', async (req, res) => {
       ok: true,
       message: 'Película enviada correctamente',
       textSent: sentText,
-      videoSent: sentVideo
+      videoSent: sentVideo,
+      charged: MOVIE_PRICE,
+      balance: newBalance
     });
   } catch (error) {
     console.error('ERROR send-movie:', error.response?.description || error.message);
@@ -364,18 +455,12 @@ app.post('/api/send-movie', async (req, res) => {
   }
 });
 
-// =========================
-// CONTROL DE TEMA PERMITIDO
-// =========================
 function isAllowedThread(ctx) {
   const chatId = ctx.chat?.id;
   const threadId = ctx.message?.message_thread_id;
   return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
 }
 
-// =========================
-// BOTÓN DE BIBLIOTECA
-// =========================
 async function sendBibliotecaButton() {
   await bot.telegram.sendMessage(
     ALLOWED_CHAT_ID,
@@ -394,16 +479,10 @@ async function sendBibliotecaButton() {
   );
 }
 
-// =========================
-// START
-// =========================
 bot.start(async (ctx) => {
   await ctx.reply('Bienvenido. Abre la biblioteca y elige una película.');
 });
 
-// =========================
-// MENSAJES DEL BOT
-// =========================
 bot.on('message', async (ctx) => {
   try {
     const chatId = ctx.chat?.id;
@@ -437,16 +516,10 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// =========================
-// ARRANCAR SERVIDOR
-// =========================
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor en puerto ${PORT}`);
 });
 
-// =========================
-// LANZAR BOT
-// =========================
 bot.launch()
   .then(() => console.log('Bot iniciado'))
   .catch((error) => console.error('Error iniciando el bot:', error.message));
