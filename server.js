@@ -8,7 +8,7 @@ const WEBAPP_URL = process.env.WEBAPP_URL;
 const INDEXWEBOFICA_URL = process.env.INDEXWEBOFICA_URL || 'https://indexwebofica-pzwchg.fly.dev';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 const ALLOWED_CHAT_ID = -1003043513364;
 const ALLOWED_THREAD_ID = 38;
@@ -18,12 +18,23 @@ if (!BOT_TOKEN || !WEBAPP_URL) {
   process.exit(1);
 }
 
+console.log('Iniciando servidor...');
+console.log('PORT:', PORT);
+console.log('WEBAPP_URL:', WEBAPP_URL);
+console.log('INDEXWEBOFICA_URL:', INDEXWEBOFICA_URL);
+console.log('SUPABASE configurado:', !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY);
+
 const app = express();
 const bot = new Telegraf(BOT_TOKEN);
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Healthcheck para Fly.io
+app.get('/health', (req, res) => {
+  res.status(200).json({ ok: true, status: 'running' });
+});
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -68,6 +79,8 @@ function parseTelegramLink(link) {
     const url = new URL(link);
     const parts = url.pathname.split('/').filter(Boolean);
 
+    // Ejemplo:
+    // https://t.me/c/3043513364/5/226?single
     if (parts[0] === 'c' && parts.length >= 4) {
       const internalId = parts[1];
       const threadId = parseInt(parts[2], 10);
@@ -82,6 +95,8 @@ function parseTelegramLink(link) {
       };
     }
 
+    // Ejemplo:
+    // https://t.me/c/3043513364/226
     if (parts[0] === 'c' && parts.length >= 3) {
       const internalId = parts[1];
       const messageId = parseInt(parts[2], 10);
@@ -94,6 +109,8 @@ function parseTelegramLink(link) {
       };
     }
 
+    // Ejemplo:
+    // https://t.me/canal/226
     if (parts.length >= 2) {
       const username = parts[0];
       const messageId = parseInt(parts[1], 10);
@@ -108,6 +125,7 @@ function parseTelegramLink(link) {
 
     return null;
   } catch (err) {
+    console.error('Error parseando telegram_link:', err.message);
     return null;
   }
 }
@@ -156,7 +174,7 @@ app.post('/api/send-movie', async (req, res) => {
 
     console.log('LINK PARSEADO:', parsed);
 
-    // 1. Intentar enviar primero el texto relacionado
+    // 1. Enviar primero el texto relacionado
     let sentText = false;
 
     sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
@@ -253,7 +271,8 @@ bot.on('message', async (ctx) => {
   }
 });
 
-app.listen(PORT, () => {
+// Escuchar en 0.0.0.0 para Fly.io
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor en puerto ${PORT}`);
 });
 
