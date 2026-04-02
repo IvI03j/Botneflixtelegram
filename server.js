@@ -1,7 +1,10 @@
+require('dotenv').config();
+
 const express = require('express');
 const { Telegraf } = require('telegraf');
 const cors = require('cors');
 const path = require('path');
+const supabase = require('./supabase');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL;
@@ -40,6 +43,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// =========================
+// CATÁLOGO REMOTO
+// =========================
 app.get('/api/movies', async (req, res) => {
   try {
     const response = await fetch(`${INDEXWEBOFICA_URL}/_api/catalog`);
@@ -74,6 +80,9 @@ app.get('/api/movies', async (req, res) => {
   }
 });
 
+// =========================
+// PARSEAR LINKS DE TELEGRAM
+// =========================
 function parseTelegramLink(link) {
   try {
     const url = new URL(link);
@@ -130,6 +139,9 @@ function parseTelegramLink(link) {
   }
 }
 
+// =========================
+// COPIAR MENSAJES
+// =========================
 async function tryCopyMessage(toUserId, fromChatId, messageId) {
   try {
     await bot.telegram.copyMessage(
@@ -147,6 +159,9 @@ async function tryCopyMessage(toUserId, fromChatId, messageId) {
   }
 }
 
+// =========================
+// ENVIAR PELÍCULA
+// =========================
 app.post('/api/send-movie', async (req, res) => {
   try {
     const { userId, telegram_link } = req.body;
@@ -210,12 +225,18 @@ app.post('/api/send-movie', async (req, res) => {
   }
 });
 
+// =========================
+// CONTROL DE TEMA PERMITIDO
+// =========================
 function isAllowedThread(ctx) {
   const chatId = ctx.chat?.id;
   const threadId = ctx.message?.message_thread_id;
   return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
 }
 
+// =========================
+// BOTÓN DE BIBLIOTECA
+// =========================
 async function sendBibliotecaButton() {
   await bot.telegram.sendMessage(
     ALLOWED_CHAT_ID,
@@ -234,10 +255,16 @@ async function sendBibliotecaButton() {
   );
 }
 
+// =========================
+// START
+// =========================
 bot.start(async (ctx) => {
   await ctx.reply('Bienvenido. Abre la biblioteca y elige una película.');
 });
 
+// =========================
+// MENSAJES DEL BOT
+// =========================
 bot.on('message', async (ctx) => {
   try {
     const chatId = ctx.chat?.id;
@@ -271,11 +298,16 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// Escuchar en 0.0.0.0 para Fly.io
+// =========================
+// ARRANCAR SERVIDOR
+// =========================
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor en puerto ${PORT}`);
 });
 
+// =========================
+// LANZAR BOT
+// =========================
 bot.launch()
   .then(() => console.log('Bot iniciado'))
   .catch((error) => console.error('Error iniciando el bot:', error.message));
