@@ -1,0 +1,23 @@
+  app = "Botneflixtelegram"          # ← CAMBIA ESTE NOMBRE
+primary_region = "mad"           # Madrid (puedes cambiar a "lon" si prefieres London)
+
+[build]
+  builder = "paketobuildpacks/builder:base"
+  buildpacks = ["paketo-buildpacks/nodejs"]
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Variables de entorno sensibles (mejor ponerlas en el dashboard de Fly.io)
+# [env]
+#   BOT_TOKEN = "xxx"
+#   SUPABASE_URL = "xxx"
+#   SUPABASE_SERVICE_ROLE_KEY = "xxx"
