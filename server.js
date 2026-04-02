@@ -154,29 +154,30 @@ app.post('/api/send-movie', async (req, res) => {
 
     console.log('LINK PARSEADO:', parsed);
 
-    // 1. Copiar el mensaje principal (video)
-    const sentMain = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id);
+    // 1. Intentar enviar primero el texto relacionado
+    let sentText = false;
 
-    if (!sentMain) {
-      return res.status(500).json({
-        ok: false,
-        error: 'No se pudo enviar el mensaje principal'
-      });
+    sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
+
+    if (!sentText) {
+      sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
     }
 
-    // 2. Intentar copiar el mensaje siguiente (posible descripción)
-    const sentNext = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
+    // 2. Luego enviar el video principal
+    const sentVideo = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id);
 
-    // 3. Si no se pudo, intentar con el anterior
-    let sentPrev = false;
-    if (!sentNext) {
-      sentPrev = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
+    if (!sentVideo) {
+      return res.status(500).json({
+        ok: false,
+        error: 'No se pudo enviar el video principal'
+      });
     }
 
     return res.json({
       ok: true,
-      message: 'Película enviada',
-      extraTextSent: sentNext || sentPrev
+      message: 'Película enviada correctamente',
+      textSent: sentText,
+      videoSent: sentVideo
     });
   } catch (error) {
     console.error('ERROR send-movie:', error.response?.description || error.message);
