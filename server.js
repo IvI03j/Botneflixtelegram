@@ -285,7 +285,7 @@ function parseTelegramLink(link) {
 // =========================
 async function tryCopyMessage(toUserId, fromChatId, messageId) {
   try {
-    await bot.telegram.copyMessage(
+    const result = await bot.telegram.copyMessage(
       toUserId,
       fromChatId,
       messageId,
@@ -293,10 +293,11 @@ async function tryCopyMessage(toUserId, fromChatId, messageId) {
         protect_content: true
       }
     );
-    return true;
+
+    return { ok: true, result };
   } catch (error) {
     console.error(`No se pudo copiar message_id ${messageId}:`, error.response?.description || error.message);
-    return false;
+    return { ok: false };
   }
 }
 
@@ -319,7 +320,6 @@ app.post('/api/send-movie', async (req, res) => {
       });
     }
 
-    // 1. Buscar usuario
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
@@ -341,7 +341,6 @@ app.post('/api/send-movie', async (req, res) => {
       });
     }
 
-    // 2. Verificar saldo
     if (user.coins < MOVIE_PRICE) {
       return res.status(400).json({
         ok: false,
@@ -362,7 +361,6 @@ app.post('/api/send-movie', async (req, res) => {
 
     console.log('LINK PARSEADO:', parsed);
 
-    // 3. Descontar monedas
     const newBalance = user.coins - MOVIE_PRICE;
 
     const { error: updateCoinsError } = await supabase
@@ -381,7 +379,6 @@ app.post('/api/send-movie', async (req, res) => {
       });
     }
 
-    // 4. Registrar transacción
     const { error: transactionError } = await supabase
       .from('transactions')
       .insert([
@@ -398,20 +395,23 @@ app.post('/api/send-movie', async (req, res) => {
       console.error('Error guardando transacción:', transactionError.message);
     }
 
-    // 5. Enviar primero el texto relacionado
+    // 1. Intentar mandar el texto primero
     let sentText = false;
 
-    sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
-
-    if (!sentText) {
-      sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
+    const nextText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
+    if (nextText.ok) {
+      sentText = true;
+    } else {
+      const prevText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
+      if (prevText.ok) {
+        sentText = true;
+      }
     }
 
-    // 6. Luego enviar el video principal
+    // 2. Luego mandar el video
     const sentVideo = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id);
 
-    if (!sentVideo) {
-      // Si falla el envío, devolver monedas
+    if (!sentVideo.ok) {
       await supabase
         .from('users')
         .update({
@@ -440,7 +440,7 @@ app.post('/api/send-movie', async (req, res) => {
       ok: true,
       message: 'Película enviada correctamente',
       textSent: sentText,
-      videoSent: sentVideo,
+      videoSent: true,
       charged: MOVIE_PRICE,
       balance: newBalance
     });
