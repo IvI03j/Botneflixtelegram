@@ -16,6 +16,7 @@ if (tg) {
 
 let allMovies = [];
 let featuredMovie = null;
+let currentModalMovie = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('movies');
@@ -82,18 +83,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (featuredMovie) openModal(featuredMovie);
     });
 
-    heroWatchBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (featuredMovie?.telegram_link) {
-        openTelegramLink(featuredMovie.telegram_link);
+    heroWatchBtn.addEventListener('click', async () => {
+      if (featuredMovie) {
+        await sendMovie(featuredMovie);
       }
     });
 
-    modalWatchBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const link = modalWatchBtn.getAttribute('data-link');
-      if (link) {
-        openTelegramLink(link);
+    modalWatchBtn.addEventListener('click', async () => {
+      if (currentModalMovie) {
+        await sendMovie(currentModalMovie);
       }
     });
 
@@ -109,18 +107,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (resultsCount) resultsCount.textContent = '';
   }
 
-  function openTelegramLink(link) {
-    if (!link) return;
-
+  async function sendMovie(movie) {
     try {
-      if (tg && typeof tg.openTelegramLink === 'function' && link.includes('t.me')) {
-        tg.openTelegramLink(link);
-      } else {
-        window.open(link, '_blank');
+      if (!movie?.telegram_link) {
+        alert('Esta película no tiene enlace de Telegram');
+        return;
       }
-    } catch (error) {
-      console.error('Error abriendo enlace de Telegram:', error);
-      window.open(link, '_blank');
+
+      const userId = tg?.initDataUnsafe?.user?.id;
+
+      if (!userId) {
+        alert('Abre esta web desde Telegram');
+        return;
+      }
+
+      const res = await fetch('/api/send-movie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          telegram_link: movie.telegram_link
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        alert('✅ Película enviada al chat del bot');
+      } else {
+        alert('❌ ' + (data.detail || data.error || 'No se pudo enviar'));
+      }
+    } catch (e) {
+      console.error('Error enviando película:', e);
+      alert('❌ Error enviando película');
     }
   }
 
@@ -246,7 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${genresHtml}
           </div>
 
-          <button class="details-btn">Ver en Telegram</button>
+          <button class="details-btn">Ver detalles</button>
         </div>
       `;
 
@@ -264,6 +283,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function openModal(movie) {
+    currentModalMovie = movie;
+
     modalPoster.src = movie.backdrop || movie.poster || 'https://via.placeholder.com/1200x700?text=Sin+imagen';
     modalPoster.alt = movie.title || 'Sin título';
     modalTitle.textContent = movie.title || 'Sin título';
@@ -276,7 +297,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       .join('');
 
     modalDescription.textContent = movie.description || 'Sin descripción disponible.';
-    modalWatchBtn.setAttribute('data-link', movie.telegram_link || '#');
 
     if (movie.trailer_url) {
       modalTrailerBtn.href = movie.trailer_url;
@@ -298,6 +318,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function closeModal() {
     detailModal.classList.add('hidden');
     document.body.style.overflow = '';
+    currentModalMovie = null;
 
     if (tg && typeof tg.BackButton !== 'undefined') {
       tg.BackButton.hide();
