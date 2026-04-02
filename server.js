@@ -65,14 +65,31 @@ app.get('/api/movies', async (req, res) => {
 });
 
 // =========================
-// PARSEAR LINK DE TELEGRAM
+// PARSEAR LINKS DE TELEGRAM
 // =========================
 function parseTelegramLink(link) {
   try {
     const url = new URL(link);
     const parts = url.pathname.split('/').filter(Boolean);
 
-    // Ejemplo: https://t.me/c/1234567890/55
+    // Caso con topic:
+    // https://t.me/c/3043513364/5/227?single
+    if (parts[0] === 'c' && parts.length >= 4) {
+      const internalId = parts[1];
+      const threadId = parseInt(parts[2], 10);
+      const messageId = parseInt(parts[3], 10);
+
+      if (!internalId || !messageId) return null;
+
+      return {
+        chat_id: Number(`-100${internalId}`),
+        message_thread_id: threadId,
+        message_id: messageId
+      };
+    }
+
+    // Caso privado simple:
+    // https://t.me/c/3043513364/227
     if (parts[0] === 'c' && parts.length >= 3) {
       const internalId = parts[1];
       const messageId = parseInt(parts[2], 10);
@@ -85,7 +102,8 @@ function parseTelegramLink(link) {
       };
     }
 
-    // Ejemplo: https://t.me/canalpublico/55
+    // Caso público:
+    // https://t.me/canal/227
     if (parts.length >= 2) {
       const username = parts[0];
       const messageId = parseInt(parts[1], 10);
@@ -111,7 +129,10 @@ app.post('/api/send-movie', async (req, res) => {
   try {
     const { userId, telegram_link } = req.body;
 
-    console.log('REQ BODY /api/send-movie:', req.body);
+    console.log('========================');
+    console.log('POST /api/send-movie');
+    console.log('BODY:', req.body);
+    console.log('========================');
 
     if (!userId || !telegram_link) {
       return res.status(400).json({
@@ -150,22 +171,32 @@ app.post('/api/send-movie', async (req, res) => {
       console.error('copyMessage falló:', copyError.response?.description || copyError.message);
 
       // Intento 2: reenviar mensaje
-      await bot.telegram.forwardMessage(
-        userId,
-        parsed.chat_id,
-        parsed.message_id,
-        {
-          protect_content: true
-        }
-      );
+      try {
+        await bot.telegram.forwardMessage(
+          userId,
+          parsed.chat_id,
+          parsed.message_id,
+          {
+            protect_content: true
+          }
+        );
 
-      return res.json({
-        ok: true,
-        message: 'Película enviada por reenvío'
-      });
+        return res.json({
+          ok: true,
+          message: 'Película enviada por reenvío'
+        });
+      } catch (forwardError) {
+        console.error('forwardMessage falló:', forwardError.response?.description || forwardError.message);
+
+        return res.status(500).json({
+          ok: false,
+          error: 'No se pudo enviar la película',
+          detail: forwardError.response?.description || forwardError.message
+        });
+      }
     }
   } catch (error) {
-    console.error('ERROR send-movie:', error.response?.description || error.message);
+    console.error('ERROR GENERAL send-movie:', error.response?.description || error.message);
 
     return res.status(500).json({
       ok: false,
@@ -176,7 +207,7 @@ app.post('/api/send-movie', async (req, res) => {
 });
 
 // =========================
-// CONTROL DEL TEMA PERMITIDO
+// CONTROL DE TEMA PERMITIDO
 // =========================
 function isAllowedThread(ctx) {
   const chatId = ctx.chat?.id;
@@ -206,14 +237,14 @@ async function sendBibliotecaButton() {
 }
 
 // =========================
-// COMANDO START
+// /start
 // =========================
 bot.start(async (ctx) => {
   await ctx.reply('Bienvenido. Abre la biblioteca y elige una película.');
 });
 
 // =========================
-// MANEJO DE MENSAJES
+// MENSAJES DEL BOT
 // =========================
 bot.on('message', async (ctx) => {
   try {
@@ -249,14 +280,14 @@ bot.on('message', async (ctx) => {
 });
 
 // =========================
-// LEVANTAR SERVIDOR
+// INICIAR SERVIDOR
 // =========================
 app.listen(PORT, () => {
   console.log(`Servidor en puerto ${PORT}`);
 });
 
 // =========================
-// INICIAR BOT
+// LANZAR BOT
 // =========================
 bot.launch()
   .then(() => console.log('Bot iniciado'))
