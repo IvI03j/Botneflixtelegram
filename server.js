@@ -27,7 +27,9 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Catálogo remoto
+// =========================
+// CATÁLOGO REMOTO
+// =========================
 app.get('/api/movies', async (req, res) => {
   try {
     const response = await fetch(`${INDEXWEBOFICA_URL}/_api/catalog`);
@@ -55,10 +57,16 @@ app.get('/api/movies', async (req, res) => {
     res.json(adapted);
   } catch (error) {
     console.error('Error obteniendo catálogo:', error.message);
-    res.status(500).json({ ok: false, error: 'No se pudieron cargar las películas' });
+    res.status(500).json({
+      ok: false,
+      error: 'No se pudieron cargar las películas'
+    });
   }
 });
 
+// =========================
+// PARSEAR LINK DE TELEGRAM
+// =========================
 function parseTelegramLink(link) {
   try {
     const url = new URL(link);
@@ -96,6 +104,9 @@ function parseTelegramLink(link) {
   }
 }
 
+// =========================
+// ENVIAR PELÍCULA AL PRIVADO
+// =========================
 app.post('/api/send-movie', async (req, res) => {
   try {
     const { userId, telegram_link } = req.body;
@@ -120,21 +131,41 @@ app.post('/api/send-movie', async (req, res) => {
 
     console.log('LINK PARSEADO:', parsed);
 
-    await bot.telegram.copyMessage(
-      userId,
-      parsed.chat_id,
-      parsed.message_id,
-      {
-        protect_content: true
-      }
-    );
+    // Intento 1: copiar mensaje
+    try {
+      await bot.telegram.copyMessage(
+        userId,
+        parsed.chat_id,
+        parsed.message_id,
+        {
+          protect_content: true
+        }
+      );
 
-    return res.json({
-      ok: true,
-      message: 'Película enviada al chat del bot'
-    });
+      return res.json({
+        ok: true,
+        message: 'Película enviada por copia'
+      });
+    } catch (copyError) {
+      console.error('copyMessage falló:', copyError.response?.description || copyError.message);
+
+      // Intento 2: reenviar mensaje
+      await bot.telegram.forwardMessage(
+        userId,
+        parsed.chat_id,
+        parsed.message_id,
+        {
+          protect_content: true
+        }
+      );
+
+      return res.json({
+        ok: true,
+        message: 'Película enviada por reenvío'
+      });
+    }
   } catch (error) {
-    console.error('ERROR copyMessage:', error.response?.description || error.message);
+    console.error('ERROR send-movie:', error.response?.description || error.message);
 
     return res.status(500).json({
       ok: false,
@@ -144,12 +175,18 @@ app.post('/api/send-movie', async (req, res) => {
   }
 });
 
+// =========================
+// CONTROL DEL TEMA PERMITIDO
+// =========================
 function isAllowedThread(ctx) {
   const chatId = ctx.chat?.id;
   const threadId = ctx.message?.message_thread_id;
   return chatId === ALLOWED_CHAT_ID && threadId === ALLOWED_THREAD_ID;
 }
 
+// =========================
+// BOTÓN DE BIBLIOTECA
+// =========================
 async function sendBibliotecaButton() {
   await bot.telegram.sendMessage(
     ALLOWED_CHAT_ID,
@@ -168,10 +205,16 @@ async function sendBibliotecaButton() {
   );
 }
 
+// =========================
+// COMANDO START
+// =========================
 bot.start(async (ctx) => {
   await ctx.reply('Bienvenido. Abre la biblioteca y elige una película.');
 });
 
+// =========================
+// MANEJO DE MENSAJES
+// =========================
 bot.on('message', async (ctx) => {
   try {
     const chatId = ctx.chat?.id;
@@ -205,10 +248,16 @@ bot.on('message', async (ctx) => {
   }
 });
 
+// =========================
+// LEVANTAR SERVIDOR
+// =========================
 app.listen(PORT, () => {
   console.log(`Servidor en puerto ${PORT}`);
 });
 
+// =========================
+// INICIAR BOT
+// =========================
 bot.launch()
   .then(() => console.log('Bot iniciado'))
   .catch((error) => console.error('Error iniciando el bot:', error.message));
