@@ -44,6 +44,153 @@ app.get('/', (req, res) => {
 });
 
 // =========================
+// REGISTRAR / ACTUALIZAR USUARIO TELEGRAM
+// =========================
+app.post('/api/auth/telegram', async (req, res) => {
+  try {
+    const { telegram_id, username, first_name } = req.body;
+
+    if (!telegram_id) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Falta telegram_id'
+      });
+    }
+
+    const { data: existingUser, error: selectError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('telegram_id', telegram_id)
+      .maybeSingle();
+
+    if (selectError) {
+      console.error('Error buscando usuario:', selectError.message);
+      return res.status(500).json({
+        ok: false,
+        error: 'Error buscando usuario'
+      });
+    }
+
+    let user;
+
+    if (!existingUser) {
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert([
+          {
+            telegram_id,
+            username: username || null,
+            first_name: first_name || null,
+            coins: 0
+          }
+        ])
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error creando usuario:', insertError.message);
+        return res.status(500).json({
+          ok: false,
+          error: 'Error creando usuario'
+        });
+      }
+
+      user = newUser;
+
+      await supabase.from('transactions').insert([
+        {
+          telegram_id,
+          type: 'register',
+          amount: 0,
+          description: 'Registro inicial del usuario',
+          source: 'webapp'
+        }
+      ]);
+    } else {
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update({
+          username: username || existingUser.username,
+          first_name: first_name || existingUser.first_name,
+          updated_at: new Date().toISOString()
+        })
+        .eq('telegram_id', telegram_id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error actualizando usuario:', updateError.message);
+        return res.status(500).json({
+          ok: false,
+          error: 'Error actualizando usuario'
+        });
+      }
+
+      user = updatedUser;
+    }
+
+    return res.json({
+      ok: true,
+      user: {
+        telegram_id: user.telegram_id,
+        username: user.username,
+        first_name: user.first_name,
+        coins: user.coins,
+        premium_until: user.premium_until
+      }
+    });
+  } catch (error) {
+    console.error('Error en /api/auth/telegram:', error.message);
+    return res.status(500).json({
+      ok: false,
+      error: 'Error interno del servidor'
+    });
+  }
+});
+
+// =========================
+// CONSULTAR SALDO
+// =========================
+app.get('/api/balance/:telegramId', async (req, res) => {
+  try {
+    const telegramId = req.params.telegramId;
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('telegram_id, coins, premium_until')
+      .eq('telegram_id', telegramId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error obteniendo saldo:', error.message);
+      return res.status(500).json({
+        ok: false,
+        error: 'Error obteniendo saldo'
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        ok: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    return res.json({
+      ok: true,
+      balance: user.coins,
+      premium_until: user.premium_until
+    });
+  } catch (error) {
+    console.error('Error en /api/balance:', error.message);
+    return res.status(500).json({
+      ok: false,
+      error: 'Error interno del servidor'
+    });
+  }
+});
+
+// =========================
 // CATÁLOGO REMOTO
 // =========================
 app.get('/api/movies', async (req, res) => {
@@ -88,8 +235,6 @@ function parseTelegramLink(link) {
     const url = new URL(link);
     const parts = url.pathname.split('/').filter(Boolean);
 
-    // Ejemplo:
-    // https://t.me/c/3043513364/5/226?single
     if (parts[0] === 'c' && parts.length >= 4) {
       const internalId = parts[1];
       const threadId = parseInt(parts[2], 10);
@@ -104,8 +249,6 @@ function parseTelegramLink(link) {
       };
     }
 
-    // Ejemplo:
-    // https://t.me/c/3043513364/226
     if (parts[0] === 'c' && parts.length >= 3) {
       const internalId = parts[1];
       const messageId = parseInt(parts[2], 10);
@@ -118,8 +261,6 @@ function parseTelegramLink(link) {
       };
     }
 
-    // Ejemplo:
-    // https://t.me/canal/226
     if (parts.length >= 2) {
       const username = parts[0];
       const messageId = parseInt(parts[1], 10);
@@ -189,7 +330,6 @@ app.post('/api/send-movie', async (req, res) => {
 
     console.log('LINK PARSEADO:', parsed);
 
-    // 1. Enviar primero el texto relacionado
     let sentText = false;
 
     sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
@@ -198,7 +338,6 @@ app.post('/api/send-movie', async (req, res) => {
       sentText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
     }
 
-    // 2. Luego enviar el video principal
     const sentVideo = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id);
 
     if (!sentVideo) {
