@@ -395,20 +395,20 @@ app.post('/api/send-movie', async (req, res) => {
       console.error('Error guardando transacción:', transactionError.message);
     }
 
-    // 1. Intentar mandar el texto primero
+    // 1. Intentar mandar primero el mensaje de arriba
     let sentText = false;
 
-    const nextText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
-    if (nextText.ok) {
+    const prevText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
+    if (prevText.ok) {
       sentText = true;
     } else {
-      const prevText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
-      if (prevText.ok) {
+      const nextText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id + 1);
+      if (nextText.ok) {
         sentText = true;
       }
     }
 
-    // 2. Luego mandar el video
+    // 2. Luego mandar el video principal
     const sentVideo = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id);
 
     if (!sentVideo.ok) {
