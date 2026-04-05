@@ -11,6 +11,7 @@ const WEBAPP_URL = process.env.WEBAPP_URL;
 const INDEXWEBOFICA_URL = process.env.INDEXWEBOFICA_URL || 'https://indexwebofica-pzwchg.fly.dev';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const INTERNAL_SERVICE_KEY = process.env.INTERNAL_SERVICE_KEY || '';
 const PORT = process.env.PORT || 8080;
 
 const ALLOWED_CHAT_ID = -1003043513364;
@@ -27,6 +28,7 @@ console.log('PORT:', PORT);
 console.log('WEBAPP_URL:', WEBAPP_URL);
 console.log('INDEXWEBOFICA_URL:', INDEXWEBOFICA_URL);
 console.log('SUPABASE configurado:', !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY);
+console.log('INTERNAL_SERVICE_KEY configurado:', !!INTERNAL_SERVICE_KEY);
 
 const app = express();
 const bot = new Telegraf(BOT_TOKEN);
@@ -195,7 +197,11 @@ app.get('/api/balance/:telegramId', async (req, res) => {
 // =========================
 app.get('/api/movies', async (req, res) => {
   try {
-    const response = await fetch(`${INDEXWEBOFICA_URL}/_api/catalog`);
+    const response = await fetch(`${INDEXWEBOFICA_URL}/_api/catalog`, {
+      headers: {
+        'X-Internal-Service-Key': INTERNAL_SERVICE_KEY
+      }
+    });
 
     if (!response.ok) {
       throw new Error(`Error ${response.status} de indexwebofica`);
@@ -395,7 +401,6 @@ app.post('/api/send-movie', async (req, res) => {
       console.error('Error guardando transacción:', transactionError.message);
     }
 
-    // 1. Intentar mandar primero el mensaje de arriba
     let sentText = false;
 
     const prevText = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id - 1);
@@ -408,7 +413,6 @@ app.post('/api/send-movie', async (req, res) => {
       }
     }
 
-    // 2. Luego mandar el video principal
     const sentVideo = await tryCopyMessage(userId, parsed.chat_id, parsed.message_id);
 
     if (!sentVideo.ok) {
